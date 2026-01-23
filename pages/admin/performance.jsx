@@ -277,12 +277,24 @@ const ManagePerformance = () => {
                       {entry.ytdReturn?.toFixed(2) || "0.00"}%
                     </StyledTableCell>
                     <StyledTableCell label="Yearly Return">
-                      {entry.yearlyReturn > 0 ? "+" : ""}
-                      {entry.yearlyReturn?.toFixed(2) || "0.00"}%
+                      {entry.yearlyReturn != null && entry.yearlyReturn !== 0 ? (
+                        <>
+                          {entry.yearlyReturn > 0 ? "+" : ""}
+                          {entry.yearlyReturn.toFixed(2)}%
+                        </>
+                      ) : (
+                        "N/A"
+                      )}
                     </StyledTableCell>
                     <StyledTableCell label="Total Return">
-                      {entry.totalReturn > 0 ? "+" : ""}
-                      {entry.totalReturn?.toFixed(2) || "0.00"}%
+                      {entry.totalReturn != null && entry.totalReturn !== 0 ? (
+                        <>
+                          {entry.totalReturn > 0 ? "+" : ""}
+                          {entry.totalReturn.toFixed(2)}%
+                        </>
+                      ) : (
+                        "N/A"
+                      )}
                     </StyledTableCell>
                     <StyledTableCell label="Sharpe Ratio">
                       {entry.sharpeRatio?.toFixed(2) || "N/A"}

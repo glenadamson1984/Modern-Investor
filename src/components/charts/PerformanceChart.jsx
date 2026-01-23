@@ -54,6 +54,51 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
         // Calculate totals from individual platform entries
         const entriesWithTotals = calculateTotalPerformance(allEntries);
 
+        // Calculate cumulative returns from monthly returns for each platform
+        // Group entries by platform and sort chronologically
+        const platformEntries = {};
+        entriesWithTotals.forEach((entry) => {
+          const platform = entry.platform || "total";
+          if (!platformEntries[platform]) {
+            platformEntries[platform] = [];
+          }
+          platformEntries[platform].push(entry);
+        });
+
+        // Calculate cumulative returns per platform
+        Object.keys(platformEntries).forEach((platform) => {
+          const entries = platformEntries[platform].sort((a, b) => {
+            const dateA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date).getTime();
+            const dateB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date).getTime();
+            return dateA - dateB;
+          });
+
+          let cumulative = 1;
+          let hasStartedCalculation = false;
+          
+          entries.forEach((entry) => {
+            // Priority 1: If we have a manually entered totalReturn, use that and reset cumulative
+            if (entry.totalReturn != null && entry.totalReturn !== 0) {
+              entry.calculatedTotalReturn = parseFloat(entry.totalReturn.toFixed(2));
+              cumulative = 1 + (entry.totalReturn / 100);
+              hasStartedCalculation = true;
+            }
+            // Priority 2: If we have monthlyReturn, calculate cumulative from monthly returns
+            else if (entry.monthlyReturn != null && entry.monthlyReturn !== 0) {
+              const monthlyDecimal = entry.monthlyReturn / 100;
+              cumulative *= (1 + monthlyDecimal);
+              entry.calculatedTotalReturn = parseFloat(((cumulative - 1) * 100).toFixed(2));
+              hasStartedCalculation = true;
+            }
+            // Priority 3: If we've started calculating but this entry has no monthly return, 
+            // carry forward the last cumulative value
+            else if (hasStartedCalculation) {
+              entry.calculatedTotalReturn = parseFloat(((cumulative - 1) * 100).toFixed(2));
+            }
+            // Otherwise, calculatedTotalReturn will remain null and we'll fall back to YTD
+          });
+        });
+
         // Group by date and platform - handle multiple entries per date
         const dateMap = {};
         entriesWithTotals.forEach((entry) => {
@@ -75,9 +120,20 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
             platform === "hl" ? "HL" :
             "Total";
           
-          // Store both Total Return and YTD Return for each platform
-          // Use totalReturn if available, otherwise use ytdReturn as fallback
-          dateMap[dateKey][`${platformName}_Total`] = entry.totalReturn != null ? entry.totalReturn : (entry.ytdReturn || 0);
+          // For Total Return: Use calculated cumulative if totalReturn is 0 or null, otherwise use totalReturn
+          // If totalReturn is 0, it means it wasn't provided, so calculate from monthly returns
+          // Treat 0 as "not provided" since it was likely from the CSV template with zeros
+          const hasValidTotalReturn = entry.totalReturn != null && entry.totalReturn !== 0;
+          let totalReturnValue = hasValidTotalReturn
+            ? entry.totalReturn 
+            : (entry.calculatedTotalReturn != null 
+                ? entry.calculatedTotalReturn 
+                : (entry.ytdReturn || 0));
+          
+          // Round to 2 decimal places
+          totalReturnValue = parseFloat(totalReturnValue.toFixed(2));
+          
+          dateMap[dateKey][`${platformName}_Total`] = totalReturnValue;
           dateMap[dateKey][`${platformName}_YTD`] = entry.ytdReturn || 0;
         });
 
@@ -101,148 +157,212 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
 
   if (loading) {
     return (
-      <StyledChartContainer>
-        <StyledChartTitle>Performance Chart</StyledChartTitle>
-        <div style={{ color: colours.white, textAlign: "center" }}>
-          Loading chart data...
-        </div>
-      </StyledChartContainer>
+      <>
+        <StyledChartContainer>
+          <StyledChartTitle>Overall Return</StyledChartTitle>
+          <div style={{ color: colours.white, textAlign: "center" }}>
+            Loading chart data...
+          </div>
+        </StyledChartContainer>
+        <StyledChartContainer>
+          <StyledChartTitle>YTD Return</StyledChartTitle>
+          <div style={{ color: colours.white, textAlign: "center" }}>
+            Loading chart data...
+          </div>
+        </StyledChartContainer>
+      </>
     );
   }
 
   if (data.length === 0) {
     return (
-      <StyledChartContainer>
-        <StyledChartTitle>Performance Chart</StyledChartTitle>
-        <div style={{ color: colours.white, textAlign: "center" }}>
-          No performance data available yet.
-        </div>
-      </StyledChartContainer>
+      <>
+        <StyledChartContainer>
+          <StyledChartTitle>Overall Return</StyledChartTitle>
+          <div style={{ color: colours.white, textAlign: "center" }}>
+            No performance data available yet.
+          </div>
+        </StyledChartContainer>
+        <StyledChartContainer>
+          <StyledChartTitle>YTD Return</StyledChartTitle>
+          <div style={{ color: colours.white, textAlign: "center" }}>
+            No performance data available yet.
+          </div>
+        </StyledChartContainer>
+      </>
     );
   }
 
   return (
-    <StyledChartContainer>
-      <StyledChartTitle>Performance Over Time</StyledChartTitle>
-      <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke={colours.grey} />
-          <XAxis
-            dataKey="date"
-            stroke={colours.white}
-            style={{ fontSize: "12px" }}
-          />
-          <YAxis
-            stroke={colours.white}
-            style={{ fontSize: "12px" }}
-            tickFormatter={(value) => `${value}%`}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: colours.darkGrey,
-              border: `1px solid ${colours.pink}`,
-              borderRadius: "8px",
-              color: colours.white,
-            }}
-          />
-          <Legend />
-          {showPlatforms ? (
-            <>
-              {/* Total Return Lines */}
-              <Line
-                type="monotone"
-                dataKey="Total_Total"
-                stroke={colours.pink}
-                strokeWidth={2}
-                name="Total - Overall Return"
-                dot={{ fill: colours.pink, r: 4 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="T212_Total"
-                stroke={colours.green}
-                strokeWidth={2}
-                name="T212 - Overall Return"
-                dot={{ fill: colours.green, r: 4 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="eToro_Total"
-                stroke="#4A90E2"
-                strokeWidth={2}
-                name="eToro - Overall Return"
-                dot={{ fill: "#4A90E2", r: 4 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="HL_Total"
-                stroke="#FFB800"
-                strokeWidth={2}
-                name="HL - Overall Return"
-                dot={{ fill: "#FFB800", r: 4 }}
-              />
-              {/* YTD Return Lines (dashed) */}
-              <Line
-                type="monotone"
-                dataKey="Total_YTD"
-                stroke={colours.pink}
-                strokeWidth={1.5}
-                strokeDasharray="5 5"
-                name="Total - YTD Return"
-                dot={{ fill: colours.pink, r: 3 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="T212_YTD"
-                stroke={colours.green}
-                strokeWidth={1.5}
-                strokeDasharray="5 5"
-                name="T212 - YTD Return"
-                dot={{ fill: colours.green, r: 3 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="eToro_YTD"
-                stroke="#4A90E2"
-                strokeWidth={1.5}
-                strokeDasharray="5 5"
-                name="eToro - YTD Return"
-                dot={{ fill: "#4A90E2", r: 3 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="HL_YTD"
-                stroke="#FFB800"
-                strokeWidth={1.5}
-                strokeDasharray="5 5"
-                name="HL - YTD Return"
-                dot={{ fill: "#FFB800", r: 3 }}
-              />
-            </>
-          ) : (
-            <>
-              <Line
-                type="monotone"
-                dataKey="Total_Total"
-                stroke={colours.pink}
-                strokeWidth={2}
-                name="Total Return (Overall)"
-                dot={{ fill: colours.pink, r: 4 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="Total_YTD"
-                stroke={colours.pink}
-                strokeWidth={1.5}
-                strokeDasharray="5 5"
-                name="YTD Return"
-                dot={{ fill: colours.pink, r: 3 }}
-              />
-            </>
-          )}
-        </LineChart>
-      </ResponsiveContainer>
-    </StyledChartContainer>
+    <>
+      {/* Overall Return Chart */}
+      <StyledChartContainer>
+        <StyledChartTitle>Overall Return</StyledChartTitle>
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke={colours.grey} />
+            <XAxis
+              dataKey="date"
+              stroke={colours.white}
+              style={{ fontSize: "12px" }}
+            />
+            <YAxis
+              stroke={colours.white}
+              style={{ fontSize: "12px" }}
+              tickFormatter={(value) => `${value}%`}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: colours.darkGrey,
+                border: `1px solid ${colours.pink}`,
+                borderRadius: "8px",
+                color: colours.white,
+              }}
+            />
+            <Legend />
+            {showPlatforms ? (
+              <>
+                <Line
+                  type="monotone"
+                  dataKey="T212_Total"
+                  stroke={colours.green}
+                  strokeWidth={2}
+                  name="T212"
+                  dot={{ fill: colours.green, r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="eToro_Total"
+                  stroke="#4A90E2"
+                  strokeWidth={2}
+                  name="eToro"
+                  dot={{ fill: "#4A90E2", r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="HL_Total"
+                  stroke="#FFB800"
+                  strokeWidth={2}
+                  name="HL"
+                  dot={{ fill: "#FFB800", r: 4 }}
+                />
+              </>
+            ) : (
+              <>
+                <Line
+                  type="monotone"
+                  dataKey="T212_Total"
+                  stroke={colours.green}
+                  strokeWidth={2}
+                  name="T212"
+                  dot={{ fill: colours.green, r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="eToro_Total"
+                  stroke="#4A90E2"
+                  strokeWidth={2}
+                  name="eToro"
+                  dot={{ fill: "#4A90E2", r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="HL_Total"
+                  stroke="#FFB800"
+                  strokeWidth={2}
+                  name="HL"
+                  dot={{ fill: "#FFB800", r: 4 }}
+                />
+              </>
+            )}
+          </LineChart>
+        </ResponsiveContainer>
+      </StyledChartContainer>
+
+      {/* YTD Return Chart */}
+      <StyledChartContainer>
+        <StyledChartTitle>YTD Return</StyledChartTitle>
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke={colours.grey} />
+            <XAxis
+              dataKey="date"
+              stroke={colours.white}
+              style={{ fontSize: "12px" }}
+            />
+            <YAxis
+              stroke={colours.white}
+              style={{ fontSize: "12px" }}
+              tickFormatter={(value) => `${value}%`}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: colours.darkGrey,
+                border: `1px solid ${colours.pink}`,
+                borderRadius: "8px",
+                color: colours.white,
+              }}
+            />
+            <Legend />
+            {showPlatforms ? (
+              <>
+                <Line
+                  type="monotone"
+                  dataKey="T212_YTD"
+                  stroke={colours.green}
+                  strokeWidth={2}
+                  name="T212"
+                  dot={{ fill: colours.green, r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="eToro_YTD"
+                  stroke="#4A90E2"
+                  strokeWidth={2}
+                  name="eToro"
+                  dot={{ fill: "#4A90E2", r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="HL_YTD"
+                  stroke="#FFB800"
+                  strokeWidth={2}
+                  name="HL"
+                  dot={{ fill: "#FFB800", r: 4 }}
+                />
+              </>
+            ) : (
+              <>
+                <Line
+                  type="monotone"
+                  dataKey="T212_YTD"
+                  stroke={colours.green}
+                  strokeWidth={2}
+                  name="T212"
+                  dot={{ fill: colours.green, r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="eToro_YTD"
+                  stroke="#4A90E2"
+                  strokeWidth={2}
+                  name="eToro"
+                  dot={{ fill: "#4A90E2", r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="HL_YTD"
+                  stroke="#FFB800"
+                  strokeWidth={2}
+                  name="HL"
+                  dot={{ fill: "#FFB800", r: 4 }}
+                />
+              </>
+            )}
+          </LineChart>
+        </ResponsiveContainer>
+      </StyledChartContainer>
+    </>
   );
 };
 

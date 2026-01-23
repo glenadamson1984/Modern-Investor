@@ -116,36 +116,76 @@ export default async function handler(req, res) {
           // Remove the "type" field from the document (it's only used for routing)
           delete processedRow.type;
         }
-      } else {
-        // Validate required fields for performance
-        if (!row.date) {
-          console.warn("Skipping performance row - missing required field (date):", row);
-          isValid = false;
         } else {
-          // Convert performance-specific fields
-          if (row.totalReturn !== undefined && row.totalReturn !== "") {
-            processedRow.totalReturn = parseFloat(row.totalReturn) || 0;
+          // Validate required fields for performance
+          if (!row.date) {
+            console.warn("Skipping performance row - missing required field (date):", row);
+            isValid = false;
+          } else {
+            // Convert performance-specific fields
+            // Only set totalReturn if it's provided and not empty/zero (0 means not provided)
+            if (row.totalReturn !== undefined && row.totalReturn !== "" && row.totalReturn !== "0") {
+              const parsed = parseFloat(row.totalReturn);
+              if (!isNaN(parsed) && parsed !== 0) {
+                processedRow.totalReturn = parsed;
+              } else {
+                processedRow.totalReturn = null;
+              }
+            } else {
+              processedRow.totalReturn = null;
+            }
+            
+            // YTD Return - required, default to 0 if missing
+            if (row.ytdReturn !== undefined && row.ytdReturn !== "") {
+              processedRow.ytdReturn = parseFloat(row.ytdReturn) || 0;
+            } else {
+              processedRow.ytdReturn = 0;
+            }
+            
+            // Only set yearlyReturn if it's provided and not empty/zero
+            if (row.yearlyReturn !== undefined && row.yearlyReturn !== "" && row.yearlyReturn !== "0") {
+              const parsed = parseFloat(row.yearlyReturn);
+              if (!isNaN(parsed) && parsed !== 0) {
+                processedRow.yearlyReturn = parsed;
+              } else {
+                processedRow.yearlyReturn = null;
+              }
+            } else {
+              processedRow.yearlyReturn = null;
+            }
+            
+            // Monthly return - optional
+            if (row.monthlyReturn !== undefined && row.monthlyReturn !== "" && row.monthlyReturn !== "0") {
+              const parsed = parseFloat(row.monthlyReturn);
+              if (!isNaN(parsed)) {
+                processedRow.monthlyReturn = parsed;
+              } else {
+                processedRow.monthlyReturn = null;
+              }
+            } else {
+              processedRow.monthlyReturn = null;
+            }
+            
+            // Sharpe ratio - optional
+            if (row.sharpeRatio !== undefined && row.sharpeRatio !== "" && row.sharpeRatio !== "0") {
+              const parsed = parseFloat(row.sharpeRatio);
+              if (!isNaN(parsed) && parsed !== 0) {
+                processedRow.sharpeRatio = parsed;
+              } else {
+                processedRow.sharpeRatio = null;
+              }
+            } else {
+              processedRow.sharpeRatio = null;
+            }
+            
+            // Keep platform field if present
+            if (row.platform) {
+              processedRow.platform = String(row.platform).toLowerCase().trim();
+            }
+            // Remove the "type" field from the document (it's only used for routing)
+            delete processedRow.type;
           }
-          if (row.ytdReturn !== undefined && row.ytdReturn !== "") {
-            processedRow.ytdReturn = parseFloat(row.ytdReturn) || 0;
-          }
-          if (row.yearlyReturn !== undefined && row.yearlyReturn !== "") {
-            processedRow.yearlyReturn = parseFloat(row.yearlyReturn) || 0;
-          }
-          if (row.monthlyReturn !== undefined && row.monthlyReturn !== "") {
-            processedRow.monthlyReturn = parseFloat(row.monthlyReturn) || null;
-          }
-          if (row.sharpeRatio !== undefined && row.sharpeRatio !== "") {
-            processedRow.sharpeRatio = parseFloat(row.sharpeRatio) || 0;
-          }
-          // Keep platform field if present
-          if (row.platform) {
-            processedRow.platform = String(row.platform).toLowerCase().trim();
-          }
-          // Remove the "type" field from the document (it's only used for routing)
-          delete processedRow.type;
         }
-      }
       
       // Only add to batch if valid
       if (isValid) {
