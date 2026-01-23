@@ -259,7 +259,8 @@ const ManagePerformance = () => {
               {entries.map((entry) => {
                 const platform = entry.platform || "total";
                 const platformName = 
-                  platform === "t212" ? "T212" :
+                  platform === "cfd212" ? "CFD 212" :
+                  platform === "inv212" ? "INV 212" :
                   platform === "etoro" ? "eToro" :
                   platform === "hl" ? "HL" :
                   "Total";

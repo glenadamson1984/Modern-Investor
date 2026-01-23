@@ -38,18 +38,45 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch more entries to account for multiple platforms per date
-        const limitCount = period === "1Y" ? 50 : period === "3Y" ? 150 : 300;
+        // Calculate date cutoff based on period
+        const now = new Date();
+        let cutoffDate = null;
+        
+        if (period === "1Y") {
+          cutoffDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        } else if (period === "3Y") {
+          cutoffDate = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+        } else if (period === "5Y") {
+          cutoffDate = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate());
+        }
+        // "ALL" means no cutoff
+        
+        // Fetch entries - use a reasonable limit for ALL, or filter by date for others
+        const limitCount = period === "ALL" ? 500 : 300;
         const q = query(
           collection(db, "performance"),
           orderBy("date", "desc"),
           limit(limitCount)
         );
         const snapshot = await getDocs(q);
-        const allEntries = snapshot.docs.map((doc) => ({
+        let allEntries = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
+        
+        // Filter by date if period is not "ALL"
+        if (cutoffDate && period !== "ALL") {
+          const cutoffTimestamp = cutoffDate.getTime();
+          allEntries = allEntries.filter((entry) => {
+            const entryDate = entry.date?.seconds 
+              ? new Date(entry.date.seconds * 1000).getTime()
+              : new Date(entry.date).getTime();
+            return entryDate >= cutoffTimestamp;
+          });
+        }
+        
+        // Reverse to chronological order for processing
+        allEntries.reverse();
 
         // Calculate totals from individual platform entries
         const entriesWithTotals = calculateTotalPerformance(allEntries);
@@ -115,7 +142,8 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
           
           const platform = entry.platform || "total";
           const platformName = 
-            platform === "t212" ? "T212" :
+            platform === "cfd212" ? "CFD 212" :
+            platform === "inv212" ? "INV 212" :
             platform === "etoro" ? "eToro" :
             platform === "hl" ? "HL" :
             "Total";
@@ -135,6 +163,30 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
           
           dateMap[dateKey][`${platformName}_Total`] = totalReturnValue;
           dateMap[dateKey][`${platformName}_YTD`] = entry.ytdReturn || 0;
+        });
+
+        // Calculate combined totals for each date (average across all platforms)
+        Object.keys(dateMap).forEach((dateKey) => {
+          const dateEntry = dateMap[dateKey];
+          const platforms = ["CFD 212", "INV 212", "eToro", "HL"];
+          
+          // Calculate average total return across all platforms for this date
+          const totalReturns = platforms
+            .map(p => dateEntry[`${p}_Total`])
+            .filter(v => v != null && v !== undefined);
+          
+          if (totalReturns.length > 0) {
+            dateEntry["Total_Total"] = parseFloat((totalReturns.reduce((sum, v) => sum + v, 0) / totalReturns.length).toFixed(2));
+          }
+          
+          // Calculate average YTD return across all platforms for this date
+          const ytdReturns = platforms
+            .map(p => dateEntry[`${p}_YTD`])
+            .filter(v => v != null && v !== undefined);
+          
+          if (ytdReturns.length > 0) {
+            dateEntry["Total_YTD"] = parseFloat((ytdReturns.reduce((sum, v) => sum + v, 0) / ytdReturns.length).toFixed(2));
+          }
         });
 
         // Convert to array and sort by date timestamp
@@ -224,11 +276,27 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
               <>
                 <Line
                   type="monotone"
-                  dataKey="T212_Total"
-                  stroke={colours.green}
+                  dataKey="Total_Total"
+                  stroke={colours.pink}
+                  strokeWidth={3}
+                  name="Total (Combined)"
+                  dot={{ fill: colours.pink, r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="CFD 212_Total"
+                  stroke={colours.white}
                   strokeWidth={2}
-                  name="T212"
-                  dot={{ fill: colours.green, r: 4 }}
+                  name="CFD 212"
+                  dot={{ fill: colours.white, r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="INV 212_Total"
+                  stroke="#00FF88"
+                  strokeWidth={2}
+                  name="INV 212"
+                  dot={{ fill: "#00FF88", r: 4 }}
                 />
                 <Line
                   type="monotone"
@@ -251,11 +319,27 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
               <>
                 <Line
                   type="monotone"
-                  dataKey="T212_Total"
-                  stroke={colours.green}
+                  dataKey="Total_Total"
+                  stroke={colours.pink}
+                  strokeWidth={3}
+                  name="Total (Combined)"
+                  dot={{ fill: colours.pink, r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="CFD 212_Total"
+                  stroke={colours.white}
                   strokeWidth={2}
-                  name="T212"
-                  dot={{ fill: colours.green, r: 4 }}
+                  name="CFD 212"
+                  dot={{ fill: colours.white, r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="INV 212_Total"
+                  stroke="#00FF88"
+                  strokeWidth={2}
+                  name="INV 212"
+                  dot={{ fill: "#00FF88", r: 4 }}
                 />
                 <Line
                   type="monotone"
@@ -308,11 +392,27 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
               <>
                 <Line
                   type="monotone"
-                  dataKey="T212_YTD"
-                  stroke={colours.green}
+                  dataKey="Total_YTD"
+                  stroke={colours.pink}
+                  strokeWidth={3}
+                  name="Total (Combined)"
+                  dot={{ fill: colours.pink, r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="CFD 212_YTD"
+                  stroke={colours.white}
                   strokeWidth={2}
-                  name="T212"
-                  dot={{ fill: colours.green, r: 4 }}
+                  name="CFD 212"
+                  dot={{ fill: colours.white, r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="INV 212_YTD"
+                  stroke="#00FF88"
+                  strokeWidth={2}
+                  name="INV 212"
+                  dot={{ fill: "#00FF88", r: 4 }}
                 />
                 <Line
                   type="monotone"
@@ -335,11 +435,27 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
               <>
                 <Line
                   type="monotone"
-                  dataKey="T212_YTD"
-                  stroke={colours.green}
+                  dataKey="Total_YTD"
+                  stroke={colours.pink}
+                  strokeWidth={3}
+                  name="Total (Combined)"
+                  dot={{ fill: colours.pink, r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="CFD 212_YTD"
+                  stroke={colours.white}
                   strokeWidth={2}
-                  name="T212"
-                  dot={{ fill: colours.green, r: 4 }}
+                  name="CFD 212"
+                  dot={{ fill: colours.white, r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="INV 212_YTD"
+                  stroke="#00FF88"
+                  strokeWidth={2}
+                  name="INV 212"
+                  dot={{ fill: "#00FF88", r: 4 }}
                 />
                 <Line
                   type="monotone"

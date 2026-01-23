@@ -75,7 +75,7 @@ const StyledPeriodButton = styled.button.withConfig({
 const Performance = () => {
   const { checkIsDesktop } = useWindowSize();
   const isDesktop = checkIsDesktop();
-  const [period, setPeriod] = useState("1Y");
+  const [period, setPeriod] = useState("ALL");
   const router = useRouter();
 
   return (

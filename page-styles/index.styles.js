@@ -133,43 +133,68 @@ export const StyledSectionDescription = styled.p.withConfig({
 export const StyledMetricsGrid = styled.div.withConfig({
   shouldForwardProp: (prop) => prop !== "isDesktop",
 })`
-  display: grid;
-  grid-template-columns: ${(props) =>
-    props.isDesktop ? "repeat(4, 1fr)" : "repeat(2, 1fr)"};
-  gap: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
   margin-bottom: 3rem;
+  flex-wrap: wrap;
 `;
 
-export const StyledMetricCard = styled.div`
-  background: ${colours.white};
-  padding: 2rem;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s, box-shadow 0.2s;
-  text-align: center;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+const pinkGlow = `
+  @keyframes pinkGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(255, 64, 139, 0.4),
+                  0 0 40px rgba(255, 64, 139, 0.3),
+                  0 0 60px rgba(255, 64, 139, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(255, 64, 139, 0.6),
+                  0 0 60px rgba(255, 64, 139, 0.5),
+                  0 0 90px rgba(255, 64, 139, 0.4);
+    }
   }
 `;
 
-export const StyledMetricValue = styled.div`
-  font-family: "Poppins", sans-serif;
-  font-size: 36px;
-  font-weight: 700;
-  color: ${colours.darkGreen};
+export const StyledMetricCard = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== "isDesktop",
+})`
+  background: ${colours.white};
+  padding: ${(props) => (props.isDesktop ? "3.5rem 4rem" : "2.5rem 3rem")};
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  text-align: center;
+  min-width: ${(props) => (props.isDesktop ? "280px" : "240px")};
+  transition: transform 0.2s;
+  
+  ${pinkGlow}
+  animation: pinkGlow 3s ease-in-out infinite;
+
+  &:hover {
+    transform: translateY(-4px);
+  }
 `;
 
-export const StyledMetricLabel = styled.div`
+export const StyledMetricValue = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== "isDesktop",
+})`
+  font-family: "Poppins", sans-serif;
+  font-size: ${(props) => (props.isDesktop ? "56px" : "48px")};
+  font-weight: 700;
+  color: ${colours.darkGreen};
+  line-height: 1.2;
+`;
+
+export const StyledMetricLabel = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== "isDesktop",
+})`
   font-family: "Inter", sans-serif;
-  font-size: 14px;
+  font-size: ${(props) => (props.isDesktop ? "16px" : "14px")};
   color: ${colours.grey};
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-weight: 600;
 `;
 
 // Features Section

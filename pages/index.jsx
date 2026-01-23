@@ -37,7 +37,6 @@ const Home = () => {
   const isDesktop = checkIsDesktop();
   const [performanceData, setPerformanceData] = useState({
     ytdReturn: 0,
-    yearlyReturn: 0,
     totalReturn: 0,
   });
 
@@ -48,21 +47,99 @@ const Home = () => {
         const q = query(
           collection(db, "performance"),
           orderBy("date", "desc"),
-          limit(50) // Get recent entries to calculate totals
+          limit(100) // Get more entries to calculate totals across all platforms
         );
         const snapshot = await getDocs(q);
         const allEntries = snapshot.docs.map((doc) => doc.data());
         
-        // Get latest total (either manual or auto-calculated)
-        const totalEntry = getLatestTotalPerformance(allEntries);
+        // Calculate totals from all platforms (this creates "total" entries that aggregate all platforms)
+        const { calculateTotalPerformance } = await import("../src/utils/performance.utils");
+        const entriesWithTotals = calculateTotalPerformance(allEntries);
         
-        if (totalEntry) {
-          setPerformanceData({
-            ytdReturn: totalEntry.ytdReturn || 0,
-            yearlyReturn: totalEntry.yearlyReturn || 0,
-            totalReturn: totalEntry.totalReturn || 0,
+        // Get latest total entry (aggregated across all platforms)
+        const totalEntry = getLatestTotalPerformance(entriesWithTotals);
+        
+        // Group entries by platform and calculate cumulative returns for each
+        const platformEntries = {};
+        entriesWithTotals.forEach((entry) => {
+          const platform = entry.platform || "total";
+          if (platform !== "total") {
+            if (!platformEntries[platform]) {
+              platformEntries[platform] = [];
+            }
+            platformEntries[platform].push(entry);
+          }
+        });
+        
+        // Calculate cumulative returns per platform (same logic as chart)
+        const platformTotals = {};
+        Object.keys(platformEntries).forEach((platform) => {
+          const entries = platformEntries[platform].sort((a, b) => {
+            const dateA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date).getTime();
+            const dateB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date).getTime();
+            return dateA - dateB;
           });
-        }
+          
+          let cumulative = 1;
+          let hasStartedCalculation = false;
+          
+          entries.forEach((entry) => {
+            if (entry.totalReturn != null && entry.totalReturn !== 0) {
+              entry.calculatedTotalReturn = parseFloat(entry.totalReturn.toFixed(2));
+              cumulative = 1 + (entry.totalReturn / 100);
+              hasStartedCalculation = true;
+            } else if (entry.monthlyReturn != null && entry.monthlyReturn !== 0) {
+              const monthlyDecimal = entry.monthlyReturn / 100;
+              cumulative *= (1 + monthlyDecimal);
+              entry.calculatedTotalReturn = parseFloat(((cumulative - 1) * 100).toFixed(2));
+              hasStartedCalculation = true;
+            } else if (hasStartedCalculation) {
+              entry.calculatedTotalReturn = parseFloat(((cumulative - 1) * 100).toFixed(2));
+            }
+          });
+          
+          // Get the latest calculated total for this platform
+          const latestEntry = entries[entries.length - 1];
+          if (latestEntry && latestEntry.calculatedTotalReturn != null) {
+            platformTotals[platform] = latestEntry.calculatedTotalReturn;
+          }
+        });
+        
+        // Calculate average total return across all platforms
+        const totalReturnValues = Object.values(platformTotals).filter(v => v != null);
+        const combinedTotalReturn = totalReturnValues.length > 0
+          ? totalReturnValues.reduce((sum, v) => sum + v, 0) / totalReturnValues.length
+          : 0;
+        
+        // Get latest YTD and Yearly returns (average across platforms)
+        const latestEntries = {};
+        entriesWithTotals.forEach((entry) => {
+          const platform = entry.platform || "total";
+          if (platform !== "total") {
+            const entryDate = entry.date?.seconds 
+              ? new Date(entry.date.seconds * 1000).getTime()
+              : new Date(entry.date).getTime();
+            
+            if (!latestEntries[platform] || entryDate > latestEntries[platform].date) {
+              latestEntries[platform] = {
+                ...entry,
+                date: entryDate
+              };
+            }
+          }
+        });
+        
+        const ytdReturns = Object.values(latestEntries)
+          .map(e => e.ytdReturn)
+          .filter(v => v != null);
+        const combinedYtdReturn = ytdReturns.length > 0
+          ? ytdReturns.reduce((sum, v) => sum + v, 0) / ytdReturns.length
+          : 0;
+        
+        setPerformanceData({
+          ytdReturn: parseFloat(combinedYtdReturn.toFixed(2)),
+          totalReturn: parseFloat(combinedTotalReturn.toFixed(2)),
+        });
       } catch (error) {
         console.error("Error fetching performance:", error);
       }
@@ -141,26 +218,19 @@ const Home = () => {
             Track year-over-year performance and key investment metrics
           </StyledSectionDescription>
           <StyledMetricsGrid isDesktop={isDesktop}>
-            <StyledMetricCard>
-              <StyledMetricValue>
+            <StyledMetricCard isDesktop={isDesktop}>
+              <StyledMetricValue isDesktop={isDesktop}>
                 {performanceData.ytdReturn > 0 ? "+" : ""}
                 {performanceData.ytdReturn.toFixed(2)}%
               </StyledMetricValue>
-              <StyledMetricLabel>YTD Return</StyledMetricLabel>
+              <StyledMetricLabel isDesktop={isDesktop}>YTD Return</StyledMetricLabel>
             </StyledMetricCard>
-            <StyledMetricCard>
-              <StyledMetricValue>
-                {performanceData.yearlyReturn > 0 ? "+" : ""}
-                {performanceData.yearlyReturn.toFixed(2)}%
-              </StyledMetricValue>
-              <StyledMetricLabel>Yearly Return</StyledMetricLabel>
-            </StyledMetricCard>
-            <StyledMetricCard>
-              <StyledMetricValue>
+            <StyledMetricCard isDesktop={isDesktop}>
+              <StyledMetricValue isDesktop={isDesktop}>
                 {performanceData.totalReturn > 0 ? "+" : ""}
                 {performanceData.totalReturn.toFixed(2)}%
               </StyledMetricValue>
-              <StyledMetricLabel>Total Return</StyledMetricLabel>
+              <StyledMetricLabel isDesktop={isDesktop}>Total Return</StyledMetricLabel>
             </StyledMetricCard>
           </StyledMetricsGrid>
           <div style={{ textAlign: "center", marginTop: "2rem", maxWidth: "300px", marginLeft: "auto", marginRight: "auto" }}>

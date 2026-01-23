@@ -86,7 +86,7 @@ const AddPerformance = () => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     date: "",
-    platform: "t212",
+    platform: "cfd212",
     ytdReturn: "",
     yearlyReturn: "",
     totalReturn: "",
@@ -108,6 +108,13 @@ const AddPerformance = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate that at least monthlyReturn or ytdReturn is provided
+    if (!formData.monthlyReturn && !formData.ytdReturn) {
+      toast.error("Please provide either Monthly Return or YTD Return");
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -118,8 +125,8 @@ const AddPerformance = () => {
       const performanceData = {
         date: timestamp,
         platform: formData.platform,
-        ytdReturn: parseFloat(formData.ytdReturn) || 0,
-        yearlyReturn: parseFloat(formData.yearlyReturn) || 0,
+        ytdReturn: formData.ytdReturn ? parseFloat(formData.ytdReturn) : 0,
+        yearlyReturn: formData.yearlyReturn ? parseFloat(formData.yearlyReturn) : null,
         totalReturn: formData.totalReturn ? parseFloat(formData.totalReturn) : null,
         monthlyReturn: formData.monthlyReturn ? parseFloat(formData.monthlyReturn) : null,
         createdAt: new Date().toISOString(),
@@ -131,7 +138,7 @@ const AddPerformance = () => {
       toast.success("Performance data added successfully!");
       setFormData({
         date: "",
-        platform: "t212",
+        platform: "cfd212",
         ytdReturn: "",
         yearlyReturn: "",
         totalReturn: "",
@@ -201,8 +208,11 @@ const AddPerformance = () => {
                   cursor: "pointer",
                 }}
               >
-                <option value="t212" style={{ background: colours.darkGrey, color: colours.white }}>
-                  Trading 212 (T212)
+                <option value="cfd212" style={{ background: colours.darkGrey, color: colours.white }}>
+                  CFD 212
+                </option>
+                <option value="inv212" style={{ background: colours.darkGrey, color: colours.white }}>
+                  INV 212
                 </option>
                 <option value="etoro" style={{ background: colours.darkGrey, color: colours.white }}>
                   eToro
@@ -215,7 +225,7 @@ const AddPerformance = () => {
 
             <StyledFormGroup>
               <StyledLabel>
-                YTD Return (%) *
+                YTD Return (%) (Optional)
                 <span style={{ 
                   fontSize: "12px", 
                   fontWeight: "normal", 
@@ -235,6 +245,16 @@ const AddPerformance = () => {
                 }}>
                   Example: For April 2022, this is return from Jan 1, 2022 to April 30, 2022
                 </span>
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem",
+                  color: colours.pink
+                }}>
+                  💡 Required if Monthly Return is not provided. Can be 0 for early months in the year.
+                </span>
               </StyledLabel>
               <StyledInput
                 type="number"
@@ -242,14 +262,13 @@ const AddPerformance = () => {
                 name="ytdReturn"
                 value={formData.ytdReturn}
                 onChange={handleChange}
-                placeholder="e.g., 15.5"
-                required
+                placeholder="e.g., 15.5 or 0"
               />
             </StyledFormGroup>
 
             <StyledFormGroup>
               <StyledLabel>
-                Annual Return (%) *
+                Annual Return (%) (Optional)
                 <span style={{ 
                   fontSize: "12px", 
                   fontWeight: "normal", 
@@ -277,7 +296,6 @@ const AddPerformance = () => {
                 value={formData.yearlyReturn}
                 onChange={handleChange}
                 placeholder="e.g., 18.2"
-                required
               />
             </StyledFormGroup>
 
@@ -291,7 +309,7 @@ const AddPerformance = () => {
                   display: "block",
                   marginTop: "0.25rem"
                 }}>
-                  Copy this from your {formData.platform === "t212" ? "Trading 212" : formData.platform === "etoro" ? "eToro" : "Hargreaves Lansdown"} platform dashboard AS OF THE SELECTED DATE
+                  Copy this from your {formData.platform === "cfd212" ? "CFD 212" : formData.platform === "inv212" ? "INV 212" : formData.platform === "etoro" ? "eToro" : "Hargreaves Lansdown"} platform dashboard AS OF THE SELECTED DATE
                 </span>
                 <span style={{ 
                   fontSize: "12px", 
@@ -344,7 +362,7 @@ const AddPerformance = () => {
                   marginTop: "0.25rem",
                   color: colours.pink
                 }}>
-                  💡 Used for monthly bar charts. Can be calculated from YTD if not provided.
+                  💡 Required if YTD Return is not provided. Used for calculating cumulative returns in charts.
                 </span>
               </StyledLabel>
               <StyledInput
@@ -353,7 +371,7 @@ const AddPerformance = () => {
                 name="monthlyReturn"
                 value={formData.monthlyReturn}
                 onChange={handleChange}
-                placeholder="e.g., 2.5 (optional - for monthly charts)"
+                placeholder="e.g., 2.5"
               />
             </StyledFormGroup>
 
