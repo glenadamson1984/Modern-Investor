@@ -131,6 +131,21 @@ const ContactFooter = () => {
             <span>📍</span>
             <span>Northern Ireland, UK</span>
           </StyledContactItem>
+          <StyledContactItem>
+            <span>✉️</span>
+            <a 
+              href="mailto:info@modern-investor.co.uk" 
+              style={{ 
+                color: "inherit", 
+                textDecoration: "none",
+                transition: "color 0.3s ease"
+              }}
+              onMouseEnter={(e) => e.target.style.color = "#FF4081"}
+              onMouseLeave={(e) => e.target.style.color = "inherit"}
+            >
+              info@modern-investor.co.uk
+            </a>
+          </StyledContactItem>
         </StyledContactInfo>
       </StyledContactContainer>
     </StyledContactSection>
