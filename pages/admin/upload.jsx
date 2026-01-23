@@ -130,7 +130,9 @@ const DataUpload = () => {
             fileInput.value = "";
           }
         } else {
-          toast.error(data.error || "Upload failed");
+          const errorMsg = data.details ? `${data.error}: ${data.details}` : (data.error || "Upload failed");
+          toast.error(errorMsg, { autoClose: 7000 });
+          console.error("Upload error details:", data);
         }
         setUploading(false);
       };

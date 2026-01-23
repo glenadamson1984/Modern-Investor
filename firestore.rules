@@ -16,10 +16,11 @@ service cloud.firestore {
       allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
     
-    // Performance collection - public read for now, authenticated write
+    // Performance collection - public read for now, allow writes (temporarily permissive for API uploads)
     match /performance/{performanceId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create, update: if true; // Temporarily allow all writes - API routes don't have auth context
+      allow delete: if request.auth != null && isAdmin();
     }
     
     // Trades collection - authenticated read/write

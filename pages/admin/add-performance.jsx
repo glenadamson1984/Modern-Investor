@@ -86,11 +86,11 @@ const AddPerformance = () => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     date: "",
-    platform: "total",
+    platform: "t212",
     ytdReturn: "",
     yearlyReturn: "",
     totalReturn: "",
-    sharpeRatio: "",
+    monthlyReturn: "",
   });
 
   React.useEffect(() => {
@@ -120,8 +120,8 @@ const AddPerformance = () => {
         platform: formData.platform,
         ytdReturn: parseFloat(formData.ytdReturn) || 0,
         yearlyReturn: parseFloat(formData.yearlyReturn) || 0,
-        totalReturn: parseFloat(formData.totalReturn) || 0,
-        sharpeRatio: parseFloat(formData.sharpeRatio) || 0,
+        totalReturn: formData.totalReturn ? parseFloat(formData.totalReturn) : null,
+        monthlyReturn: formData.monthlyReturn ? parseFloat(formData.monthlyReturn) : null,
         createdAt: new Date().toISOString(),
       };
 
@@ -131,11 +131,11 @@ const AddPerformance = () => {
       toast.success("Performance data added successfully!");
       setFormData({
         date: "",
-        platform: "total",
+        platform: "t212",
         ytdReturn: "",
         yearlyReturn: "",
         totalReturn: "",
-        sharpeRatio: "",
+        monthlyReturn: "",
       });
     } catch (error) {
       console.error("Error adding performance:", error);
@@ -171,7 +171,18 @@ const AddPerformance = () => {
             </StyledFormGroup>
 
             <StyledFormGroup>
-              <StyledLabel>Platform *</StyledLabel>
+              <StyledLabel>
+                Platform *
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem"
+                }}>
+                  Select individual platform. Total is automatically calculated from all platforms for the same date.
+                </span>
+              </StyledLabel>
               <select
                 name="platform"
                 value={formData.platform}
@@ -190,9 +201,6 @@ const AddPerformance = () => {
                   cursor: "pointer",
                 }}
               >
-                <option value="total" style={{ background: colours.darkGrey, color: colours.white }}>
-                  Total (All Platforms Combined)
-                </option>
                 <option value="t212" style={{ background: colours.darkGrey, color: colours.white }}>
                   Trading 212 (T212)
                 </option>
@@ -206,7 +214,28 @@ const AddPerformance = () => {
             </StyledFormGroup>
 
             <StyledFormGroup>
-              <StyledLabel>YTD Return (%) *</StyledLabel>
+              <StyledLabel>
+                YTD Return (%) *
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem"
+                }}>
+                  Return from January 1st of the selected year up to the selected date
+                </span>
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem",
+                  fontStyle: "italic"
+                }}>
+                  Example: For April 2022, this is return from Jan 1, 2022 to April 30, 2022
+                </span>
+              </StyledLabel>
               <StyledInput
                 type="number"
                 step="0.01"
@@ -219,7 +248,28 @@ const AddPerformance = () => {
             </StyledFormGroup>
 
             <StyledFormGroup>
-              <StyledLabel>Yearly Return (%) *</StyledLabel>
+              <StyledLabel>
+                Annual Return (%) *
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem"
+                }}>
+                  Return over the past 12 months (rolling 12 months from the selected date)
+                </span>
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem",
+                  fontStyle: "italic"
+                }}>
+                  Example: For April 2022, this is return from April 2021 to April 2022
+                </span>
+              </StyledLabel>
               <StyledInput
                 type="number"
                 step="0.01"
@@ -232,27 +282,78 @@ const AddPerformance = () => {
             </StyledFormGroup>
 
             <StyledFormGroup>
-              <StyledLabel>Total Return (%) *</StyledLabel>
+              <StyledLabel>
+                Total Return (%) (Optional)
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem"
+                }}>
+                  Copy this from your {formData.platform === "t212" ? "Trading 212" : formData.platform === "etoro" ? "eToro" : "Hargreaves Lansdown"} platform dashboard AS OF THE SELECTED DATE
+                </span>
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem",
+                  color: colours.pink
+                }}>
+                  💡 If you have YTD and Yearly returns, you can leave this blank. The overall total across all platforms is auto-calculated for charts.
+                </span>
+              </StyledLabel>
               <StyledInput
                 type="number"
                 step="0.01"
                 name="totalReturn"
                 value={formData.totalReturn}
                 onChange={handleChange}
-                placeholder="e.g., 45.8"
-                required
+                placeholder="e.g., 45.8 (optional - copy from platform)"
               />
             </StyledFormGroup>
 
             <StyledFormGroup>
-              <StyledLabel>Sharpe Ratio</StyledLabel>
+              <StyledLabel>
+                Monthly Return (%) (Optional)
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem"
+                }}>
+                  Return for this specific month only (not cumulative)
+                </span>
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem",
+                  fontStyle: "italic"
+                }}>
+                  Example: For April 2022, this is the return from April 1 to April 30, 2022 only
+                </span>
+                <span style={{ 
+                  fontSize: "12px", 
+                  fontWeight: "normal", 
+                  opacity: 0.7,
+                  display: "block",
+                  marginTop: "0.25rem",
+                  color: colours.pink
+                }}>
+                  💡 Used for monthly bar charts. Can be calculated from YTD if not provided.
+                </span>
+              </StyledLabel>
               <StyledInput
                 type="number"
                 step="0.01"
-                name="sharpeRatio"
-                value={formData.sharpeRatio}
+                name="monthlyReturn"
+                value={formData.monthlyReturn}
                 onChange={handleChange}
-                placeholder="e.g., 1.85"
+                placeholder="e.g., 2.5 (optional - for monthly charts)"
               />
             </StyledFormGroup>
 

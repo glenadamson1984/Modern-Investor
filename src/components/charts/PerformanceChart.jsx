@@ -13,6 +13,7 @@ import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import styled from "styled-components";
 import { colours } from "../../utils/style.utils";
+import { calculateTotalPerformance } from "../../utils/performance.utils";
 
 const StyledChartContainer = styled.div`
   background: rgba(255, 255, 255, 0.05);
@@ -50,9 +51,12 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
           ...doc.data(),
         }));
 
+        // Calculate totals from individual platform entries
+        const entriesWithTotals = calculateTotalPerformance(allEntries);
+
         // Group by date and platform - handle multiple entries per date
         const dateMap = {};
-        allEntries.forEach((entry) => {
+        entriesWithTotals.forEach((entry) => {
           const dateKey = new Date(
             entry.date.seconds * 1000
           ).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
@@ -71,8 +75,10 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
             platform === "hl" ? "HL" :
             "Total";
           
-          // Store the value for this platform (will overwrite if duplicate platform on same date)
-          dateMap[dateKey][platformName] = entry.totalReturn || 0;
+          // Store both Total Return and YTD Return for each platform
+          // Use totalReturn if available, otherwise use ytdReturn as fallback
+          dateMap[dateKey][`${platformName}_Total`] = entry.totalReturn != null ? entry.totalReturn : (entry.ytdReturn || 0);
+          dateMap[dateKey][`${platformName}_YTD`] = entry.ytdReturn || 0;
         });
 
         // Convert to array and sort by date timestamp
@@ -142,48 +148,97 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
           <Legend />
           {showPlatforms ? (
             <>
+              {/* Total Return Lines */}
               <Line
                 type="monotone"
-                dataKey="Total"
+                dataKey="Total_Total"
                 stroke={colours.pink}
                 strokeWidth={2}
-                name="Total (All Platforms)"
+                name="Total - Overall Return"
                 dot={{ fill: colours.pink, r: 4 }}
               />
               <Line
                 type="monotone"
-                dataKey="T212"
+                dataKey="T212_Total"
                 stroke={colours.green}
                 strokeWidth={2}
-                name="Trading 212"
+                name="T212 - Overall Return"
                 dot={{ fill: colours.green, r: 4 }}
               />
               <Line
                 type="monotone"
-                dataKey="eToro"
+                dataKey="eToro_Total"
                 stroke="#4A90E2"
                 strokeWidth={2}
-                name="eToro"
+                name="eToro - Overall Return"
                 dot={{ fill: "#4A90E2", r: 4 }}
               />
               <Line
                 type="monotone"
-                dataKey="HL"
+                dataKey="HL_Total"
                 stroke="#FFB800"
                 strokeWidth={2}
-                name="Hargreaves Lansdown"
+                name="HL - Overall Return"
                 dot={{ fill: "#FFB800", r: 4 }}
+              />
+              {/* YTD Return Lines (dashed) */}
+              <Line
+                type="monotone"
+                dataKey="Total_YTD"
+                stroke={colours.pink}
+                strokeWidth={1.5}
+                strokeDasharray="5 5"
+                name="Total - YTD Return"
+                dot={{ fill: colours.pink, r: 3 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="T212_YTD"
+                stroke={colours.green}
+                strokeWidth={1.5}
+                strokeDasharray="5 5"
+                name="T212 - YTD Return"
+                dot={{ fill: colours.green, r: 3 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="eToro_YTD"
+                stroke="#4A90E2"
+                strokeWidth={1.5}
+                strokeDasharray="5 5"
+                name="eToro - YTD Return"
+                dot={{ fill: "#4A90E2", r: 3 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="HL_YTD"
+                stroke="#FFB800"
+                strokeWidth={1.5}
+                strokeDasharray="5 5"
+                name="HL - YTD Return"
+                dot={{ fill: "#FFB800", r: 3 }}
               />
             </>
           ) : (
-            <Line
-              type="monotone"
-              dataKey="Total"
-              stroke={colours.pink}
-              strokeWidth={2}
-              name="Total Return"
-              dot={{ fill: colours.pink, r: 4 }}
-            />
+            <>
+              <Line
+                type="monotone"
+                dataKey="Total_Total"
+                stroke={colours.pink}
+                strokeWidth={2}
+                name="Total Return (Overall)"
+                dot={{ fill: colours.pink, r: 4 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="Total_YTD"
+                stroke={colours.pink}
+                strokeWidth={1.5}
+                strokeDasharray="5 5"
+                name="YTD Return"
+                dot={{ fill: colours.pink, r: 3 }}
+              />
+            </>
           )}
         </LineChart>
       </ResponsiveContainer>

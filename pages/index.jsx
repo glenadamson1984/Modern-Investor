@@ -29,6 +29,7 @@ import {
 } from "../page-styles/index.styles";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "../src/config/firebase";
+import { getLatestTotalPerformance } from "../src/utils/performance.utils";
 
 const Home = () => {
   const { checkIsDesktop } = useWindowSize();
@@ -38,7 +39,6 @@ const Home = () => {
     ytdReturn: 0,
     yearlyReturn: 0,
     totalReturn: 0,
-    sharpeRatio: 0,
   });
 
   useEffect(() => {
@@ -47,20 +47,20 @@ const Home = () => {
       try {
         const q = query(
           collection(db, "performance"),
-          orderBy("date", "desc")
+          orderBy("date", "desc"),
+          limit(50) // Get recent entries to calculate totals
         );
         const snapshot = await getDocs(q);
-        // Find the most recent "total" entry
-        const totalEntry = snapshot.docs
-          .map((doc) => doc.data())
-          .find((entry) => (entry.platform || "total") === "total");
+        const allEntries = snapshot.docs.map((doc) => doc.data());
+        
+        // Get latest total (either manual or auto-calculated)
+        const totalEntry = getLatestTotalPerformance(allEntries);
         
         if (totalEntry) {
           setPerformanceData({
             ytdReturn: totalEntry.ytdReturn || 0,
             yearlyReturn: totalEntry.yearlyReturn || 0,
             totalReturn: totalEntry.totalReturn || 0,
-            sharpeRatio: totalEntry.sharpeRatio || 0,
           });
         }
       } catch (error) {
@@ -161,12 +161,6 @@ const Home = () => {
                 {performanceData.totalReturn.toFixed(2)}%
               </StyledMetricValue>
               <StyledMetricLabel>Total Return</StyledMetricLabel>
-            </StyledMetricCard>
-            <StyledMetricCard>
-              <StyledMetricValue>
-                {performanceData.sharpeRatio.toFixed(2)}
-              </StyledMetricValue>
-              <StyledMetricLabel>Sharpe Ratio</StyledMetricLabel>
             </StyledMetricCard>
           </StyledMetricsGrid>
           <div style={{ textAlign: "center", marginTop: "2rem", maxWidth: "300px", marginLeft: "auto", marginRight: "auto" }}>
