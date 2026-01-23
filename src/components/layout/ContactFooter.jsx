@@ -73,22 +73,41 @@ const StyledContactItem = styled.div`
 `;
 
 const StyledFooterCredit = styled.div`
-  margin-top: 3rem;
-  padding-top: 2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font-family: "Inter", sans-serif;
-  font-size: 14px;
+  margin-top: 4rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  font-family: "Poppins", sans-serif;
+  font-size: ${(props) => (props.isDesktop ? "18px" : "16px")};
   color: ${colours.white};
-  opacity: 0.7;
+  opacity: 0.9;
+  letter-spacing: 0.3px;
   
   a {
     color: ${colours.pink};
     text-decoration: none;
-    transition: opacity 0.3s ease;
+    font-weight: 600;
+    position: relative;
+    transition: all 0.3s ease;
+    display: inline-block;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: ${colours.pink};
+      transition: width 0.3s ease;
+    }
     
     &:hover {
       opacity: 1;
-      text-decoration: underline;
+      transform: translateY(-2px);
+      
+      &::after {
+        width: 100%;
+      }
     }
   }
 `;
@@ -178,7 +197,7 @@ const ContactFooter = () => {
             </a>
           </StyledContactItem>
         </StyledContactInfo>
-        <StyledFooterCredit>
+        <StyledFooterCredit isDesktop={isDesktop}>
           Brought to you by{" "}
           <a href="https://modern-software.co.uk" target="_blank" rel="noopener noreferrer">
             Modern Software
