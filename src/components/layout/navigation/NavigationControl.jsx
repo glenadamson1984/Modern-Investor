@@ -32,6 +32,8 @@ const NavigationControl = () => {
             ? "/dashboard"
             : navigationItem === "Admin"
             ? "/admin/dashboard"
+            : navigationItem === "Contact"
+            ? "/contact"
             : `/${ConvertPathNameToURL(navigationItem)}`;
         const isActive =
           navigationItem === "Home"
@@ -40,6 +42,8 @@ const NavigationControl = () => {
             ? pathname === "/dashboard"
             : navigationItem === "Admin"
             ? pathname.startsWith("/admin")
+            : navigationItem === "Contact"
+            ? pathname === "/contact"
             : pathname === `/${ConvertPathNameToURL(navigationItem)}`;
 
         return (

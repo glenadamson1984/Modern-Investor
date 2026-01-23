@@ -125,6 +125,16 @@ const ContactFooter = () => {
               </CallToActionButton>
             </div>
           )}
+          {!router.pathname.includes("/contact") && (
+            <div style={{ maxWidth: "300px", width: "100%" }}>
+              <CallToActionButton
+                variant="primary"
+                onClick={() => router.push("/contact")}
+              >
+                Get In Touch
+              </CallToActionButton>
+            </div>
+          )}
         </div>
         <StyledContactInfo>
           <StyledContactItem>

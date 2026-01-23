@@ -5,6 +5,7 @@ export const NavigationItems = [
   "Fund Management",
   "Coaching",
   "Articles",
+  "Contact",
 ];
 
 export const NavigationItemsMobile = [
