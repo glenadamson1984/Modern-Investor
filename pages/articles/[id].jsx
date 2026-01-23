@@ -42,6 +42,8 @@ const StyledArticleContent = styled.div`
   line-height: 1.8;
   color: ${colours.white};
   opacity: 0.9;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 
   p {
     margin-bottom: 1.5rem;
@@ -111,6 +113,8 @@ const ArticleDetail = () => {
     return null;
   }
 
+  const content = article.content || article.excerpt || "";
+
   return (
     <>
       <SEO
@@ -136,9 +140,11 @@ const ArticleDetail = () => {
               : ""}
           </StyledArticleMeta>
           <StyledArticleContent
-            dangerouslySetInnerHTML={{
-              __html: article.content || article.excerpt || "",
-            }}
+            dangerouslySetInnerHTML={
+              /<[^>]+>/.test(content)
+                ? { __html: content }
+                : { __html: content.replace(/\n/g, '<br />') }
+            }
           />
         </StyledContentContainer>
       </StyledPageContainer>
