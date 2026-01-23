@@ -72,6 +72,27 @@ const StyledContactItem = styled.div`
   opacity: 0.9;
 `;
 
+const StyledFooterCredit = styled.div`
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: ${colours.white};
+  opacity: 0.7;
+  
+  a {
+    color: ${colours.pink};
+    text-decoration: none;
+    transition: opacity 0.3s ease;
+    
+    &:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+  }
+`;
+
 const ContactFooter = () => {
   const { checkIsDesktop } = useWindowSize();
   const isDesktop = checkIsDesktop();
@@ -157,6 +178,12 @@ const ContactFooter = () => {
             </a>
           </StyledContactItem>
         </StyledContactInfo>
+        <StyledFooterCredit>
+          Brought to you by{" "}
+          <a href="https://modern-software.co.uk" target="_blank" rel="noopener noreferrer">
+            Modern Software
+          </a>
+        </StyledFooterCredit>
       </StyledContactContainer>
     </StyledContactSection>
   );

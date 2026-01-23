@@ -270,6 +270,7 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
                 borderRadius: "8px",
                 color: colours.white,
               }}
+              formatter={(value) => `${value}%`}
             />
             <Legend />
             {showPlatforms ? (
@@ -386,6 +387,7 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
                 borderRadius: "8px",
                 color: colours.white,
               }}
+              formatter={(value) => `${value}%`}
             />
             <Legend />
             {showPlatforms ? (
