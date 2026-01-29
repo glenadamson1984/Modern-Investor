@@ -118,8 +118,23 @@ const AddPerformance = () => {
     setLoading(true);
 
     try {
-      // Convert date string to Firestore Timestamp
-      const dateObj = new Date(formData.date);
+      // Store date in same format as CSV upload: Firestore Timestamp (so chart and queries behave the same)
+      let dateStr = String(formData.date).trim();
+      if (dateStr.includes("/") && dateStr.split("/").length === 3) {
+        const parts = dateStr.split("/");
+        if (parts[0].length <= 2) {
+          dateStr = `${parts[2]}-${parts[1].padStart(
+            2,
+            "0",
+          )}-${parts[0].padStart(2, "0")}`;
+        }
+      }
+      const dateObj = new Date(dateStr);
+      if (isNaN(dateObj.getTime())) {
+        toast.error("Invalid date. Use YYYY-MM-DD or DD/MM/YYYY.");
+        setLoading(false);
+        return;
+      }
       const timestamp = Timestamp.fromDate(dateObj);
 
       const performanceData = {
