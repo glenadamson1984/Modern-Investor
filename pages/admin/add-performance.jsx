@@ -86,7 +86,7 @@ const AddPerformance = () => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     date: "",
-    platform: "cfd212",
+    platform: "acc212",
     ytdReturn: "",
     yearlyReturn: "",
     totalReturn: "",
@@ -150,7 +150,7 @@ const AddPerformance = () => {
         monthlyReturn: formData.monthlyReturn
           ? parseFloat(formData.monthlyReturn)
           : null,
-        createdAt: new Date().toISOString(),
+        createdAt: Timestamp.now(),
       };
 
       console.log("Submitting performance data:", performanceData);
@@ -162,7 +162,7 @@ const AddPerformance = () => {
       toast.success("Performance data added successfully!");
       setFormData({
         date: "",
-        platform: "cfd212",
+        platform: "acc212",
         ytdReturn: "",
         yearlyReturn: "",
         totalReturn: "",
@@ -240,7 +240,7 @@ const AddPerformance = () => {
                 }}
               >
                 <option
-                  value="cfd212"
+                  value="acc212"
                   style={{ background: colours.darkGrey, color: colours.white }}
                 >
                   ACC 212
@@ -370,7 +370,8 @@ const AddPerformance = () => {
                   }}
                 >
                   Copy this from your{" "}
-                  {formData.platform === "cfd212"
+                  {formData.platform === "acc212" ||
+                  formData.platform === "cfd212"
                     ? "ACC 212"
                     : formData.platform === "inv212"
                     ? "INV 212"

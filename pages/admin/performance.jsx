@@ -266,7 +266,7 @@ const ManagePerformance = () => {
               {entries.map((entry) => {
                 const platform = entry.platform || "total";
                 const platformName =
-                  platform === "cfd212"
+                  platform === "cfd212" || platform === "acc212"
                     ? "ACC 212"
                     : platform === "inv212"
                     ? "INV 212"

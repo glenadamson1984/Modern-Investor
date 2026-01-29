@@ -137,36 +137,90 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
               );
               hasStartedCalculation = true;
             }
-            // Priority 3: If we've started calculating but this entry has no monthly return,
-            // carry forward the last cumulative value
+            // Priority 3: If we only have ytdReturn (no totalReturn, no monthlyReturn), use it so Overall Return updates
+            else if (entry.ytdReturn != null && entry.ytdReturn !== 0) {
+              entry.calculatedTotalReturn = parseFloat(
+                Number(entry.ytdReturn).toFixed(2),
+              );
+              hasStartedCalculation = true;
+              // Don't update cumulative - use YTD as display value for this point only
+            }
+            // Priority 4: Carry forward the last cumulative value
             else if (hasStartedCalculation) {
               entry.calculatedTotalReturn = parseFloat(
                 ((cumulative - 1) * 100).toFixed(2),
               );
             }
-            // Otherwise, calculatedTotalReturn will remain null and we'll fall back to YTD
+            // Otherwise, calculatedTotalReturn stays null and we fall back to ytdReturn in dateMap
           });
         });
 
-        // Group by date and platform - handle multiple entries per date
-        const dateMap = {};
+        // Group by (dateKey, platform) and keep only the most recent entry per group (by createdAt then date then id)
+        const groupKeyToEntry = {};
         entriesWithTotals.forEach((entry) => {
           const dateKey = new Date(
-            entry.date.seconds * 1000,
+            entry.date?.seconds != null
+              ? entry.date.seconds * 1000
+              : new Date(entry.date).getTime(),
           ).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+          const platform = entry.platform || "total";
+          const key = `${dateKey}|${platform}`;
 
+          const entryCreatedAt =
+            entry.createdAt?.seconds != null
+              ? entry.createdAt.seconds * 1000
+              : entry.createdAt
+              ? new Date(entry.createdAt).getTime()
+              : 0;
+          const entryDateMs =
+            entry.date?.seconds != null
+              ? entry.date.seconds * 1000
+              : new Date(entry.date).getTime();
+          const existing = groupKeyToEntry[key];
+          if (!existing) {
+            groupKeyToEntry[key] = {
+              entry,
+              dateKey,
+              entryCreatedAt,
+              entryDateMs,
+              id: entry.id,
+            };
+          } else {
+            const better =
+              entryCreatedAt > existing.entryCreatedAt ||
+              (entryCreatedAt === existing.entryCreatedAt &&
+                entryDateMs > existing.entryDateMs) ||
+              (entryCreatedAt === existing.entryCreatedAt &&
+                entryDateMs === existing.entryDateMs &&
+                (entry.id || "") > (existing.id || ""));
+            if (better) {
+              groupKeyToEntry[key] = {
+                entry,
+                dateKey,
+                entryCreatedAt,
+                entryDateMs,
+                id: entry.id,
+              };
+            }
+          }
+        });
+
+        // Build dateMap from the chosen (most recent) entry per (dateKey, platform)
+        const dateMap = {};
+        Object.values(groupKeyToEntry).forEach(({ entry, dateKey }) => {
           if (!dateMap[dateKey]) {
             dateMap[dateKey] = {
               date: dateKey,
-              dateTimestamp: entry.date.seconds
-                ? entry.date.seconds * 1000
-                : new Date(entry.date).getTime(),
+              dateTimestamp:
+                entry.date?.seconds != null
+                  ? entry.date.seconds * 1000
+                  : new Date(entry.date).getTime(),
             };
           }
 
           const platform = entry.platform || "total";
           const platformName =
-            platform === "cfd212"
+            platform === "cfd212" || platform === "acc212"
               ? "ACC 212"
               : platform === "inv212"
               ? "INV 212"
@@ -176,9 +230,6 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
               ? "HL"
               : "Total";
 
-          // For Total Return: Use calculated cumulative if totalReturn is 0 or null, otherwise use totalReturn
-          // If totalReturn is 0, it means it wasn't provided, so calculate from monthly returns
-          // Treat 0 as "not provided" since it was likely from the CSV template with zeros
           const hasValidTotalReturn =
             entry.totalReturn != null && entry.totalReturn !== 0;
           let totalReturnValue = hasValidTotalReturn
@@ -186,12 +237,11 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
             : entry.calculatedTotalReturn != null
             ? entry.calculatedTotalReturn
             : entry.ytdReturn || 0;
-
-          // Round to 2 decimal places
-          totalReturnValue = parseFloat(totalReturnValue.toFixed(2));
+          totalReturnValue = parseFloat(Number(totalReturnValue).toFixed(2));
 
           dateMap[dateKey][`${platformName}_Total`] = totalReturnValue;
-          dateMap[dateKey][`${platformName}_YTD`] = entry.ytdReturn || 0;
+          dateMap[dateKey][`${platformName}_YTD`] =
+            entry.ytdReturn != null ? entry.ytdReturn : 0;
         });
 
         // Calculate combined totals for each date (average across all platforms)
@@ -236,7 +286,7 @@ const PerformanceChart = ({ period = "1Y", showPlatforms = true }) => {
 
         setData(chartData);
       } catch (error) {
-        console.error("Error fetching performance data:", error);
+        // Error fetching performance data - fail silently for UI
       } finally {
         setLoading(false);
       }
