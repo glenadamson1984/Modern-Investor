@@ -108,13 +108,13 @@ const AddPerformance = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate that at least monthlyReturn or ytdReturn is provided
     if (!formData.monthlyReturn && !formData.ytdReturn) {
       toast.error("Please provide either Monthly Return or YTD Return");
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -126,14 +126,23 @@ const AddPerformance = () => {
         date: timestamp,
         platform: formData.platform,
         ytdReturn: formData.ytdReturn ? parseFloat(formData.ytdReturn) : 0,
-        yearlyReturn: formData.yearlyReturn ? parseFloat(formData.yearlyReturn) : null,
-        totalReturn: formData.totalReturn ? parseFloat(formData.totalReturn) : null,
-        monthlyReturn: formData.monthlyReturn ? parseFloat(formData.monthlyReturn) : null,
+        yearlyReturn: formData.yearlyReturn
+          ? parseFloat(formData.yearlyReturn)
+          : null,
+        totalReturn: formData.totalReturn
+          ? parseFloat(formData.totalReturn)
+          : null,
+        monthlyReturn: formData.monthlyReturn
+          ? parseFloat(formData.monthlyReturn)
+          : null,
         createdAt: new Date().toISOString(),
       };
 
       console.log("Submitting performance data:", performanceData);
-      const docRef = await addDoc(collection(db, "performance"), performanceData);
+      const docRef = await addDoc(
+        collection(db, "performance"),
+        performanceData,
+      );
       console.log("Document written with ID:", docRef.id);
       toast.success("Performance data added successfully!");
       setFormData({
@@ -148,7 +157,11 @@ const AddPerformance = () => {
       console.error("Error adding performance:", error);
       console.error("Error code:", error.code);
       console.error("Error message:", error.message);
-      toast.error(`Failed to add performance data: ${error.message || "Please check console for details"}`);
+      toast.error(
+        `Failed to add performance data: ${
+          error.message || "Please check console for details"
+        }`,
+      );
     } finally {
       setLoading(false);
     }
@@ -180,14 +193,17 @@ const AddPerformance = () => {
             <StyledFormGroup>
               <StyledLabel>
                 Platform *
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem"
-                }}>
-                  Select individual platform. Total is automatically calculated from all platforms for the same date.
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                  }}
+                >
+                  Select individual platform. Total is automatically calculated
+                  from all platforms for the same date.
                 </span>
               </StyledLabel>
               <select
@@ -208,16 +224,28 @@ const AddPerformance = () => {
                   cursor: "pointer",
                 }}
               >
-                <option value="cfd212" style={{ background: colours.darkGrey, color: colours.white }}>
-                  CFD 212
+                <option
+                  value="cfd212"
+                  style={{ background: colours.darkGrey, color: colours.white }}
+                >
+                  ACC 212
                 </option>
-                <option value="inv212" style={{ background: colours.darkGrey, color: colours.white }}>
+                <option
+                  value="inv212"
+                  style={{ background: colours.darkGrey, color: colours.white }}
+                >
                   INV 212
                 </option>
-                <option value="etoro" style={{ background: colours.darkGrey, color: colours.white }}>
+                <option
+                  value="etoro"
+                  style={{ background: colours.darkGrey, color: colours.white }}
+                >
                   eToro
                 </option>
-                <option value="hl" style={{ background: colours.darkGrey, color: colours.white }}>
+                <option
+                  value="hl"
+                  style={{ background: colours.darkGrey, color: colours.white }}
+                >
                   Hargreaves Lansdown (HL)
                 </option>
               </select>
@@ -226,34 +254,43 @@ const AddPerformance = () => {
             <StyledFormGroup>
               <StyledLabel>
                 YTD Return (%) (Optional)
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem"
-                }}>
-                  Return from January 1st of the selected year up to the selected date
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                  }}
+                >
+                  Return from January 1st of the selected year up to the
+                  selected date
                 </span>
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem",
-                  fontStyle: "italic"
-                }}>
-                  Example: For April 2022, this is return from Jan 1, 2022 to April 30, 2022
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Example: For April 2022, this is return from Jan 1, 2022 to
+                  April 30, 2022
                 </span>
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem",
-                  color: colours.pink
-                }}>
-                  💡 Required if Monthly Return is not provided. Can be 0 for early months in the year.
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                    color: colours.pink,
+                  }}
+                >
+                  💡 Required if Monthly Return is not provided. Can be 0 for
+                  early months in the year.
                 </span>
               </StyledLabel>
               <StyledInput
@@ -269,24 +306,30 @@ const AddPerformance = () => {
             <StyledFormGroup>
               <StyledLabel>
                 Annual Return (%) (Optional)
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem"
-                }}>
-                  Return over the past 12 months (rolling 12 months from the selected date)
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                  }}
+                >
+                  Return over the past 12 months (rolling 12 months from the
+                  selected date)
                 </span>
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem",
-                  fontStyle: "italic"
-                }}>
-                  Example: For April 2022, this is return from April 2021 to April 2022
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Example: For April 2022, this is return from April 2021 to
+                  April 2022
                 </span>
               </StyledLabel>
               <StyledInput
@@ -302,24 +345,38 @@ const AddPerformance = () => {
             <StyledFormGroup>
               <StyledLabel>
                 Total Return (%) (Optional)
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem"
-                }}>
-                  Copy this from your {formData.platform === "cfd212" ? "CFD 212" : formData.platform === "inv212" ? "INV 212" : formData.platform === "etoro" ? "eToro" : "Hargreaves Lansdown"} platform dashboard AS OF THE SELECTED DATE
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                  }}
+                >
+                  Copy this from your{" "}
+                  {formData.platform === "cfd212"
+                    ? "ACC 212"
+                    : formData.platform === "inv212"
+                    ? "INV 212"
+                    : formData.platform === "etoro"
+                    ? "eToro"
+                    : "Hargreaves Lansdown"}{" "}
+                  platform dashboard AS OF THE SELECTED DATE
                 </span>
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem",
-                  color: colours.pink
-                }}>
-                  💡 If you have YTD and Yearly returns, you can leave this blank. The overall total across all platforms is auto-calculated for charts.
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                    color: colours.pink,
+                  }}
+                >
+                  💡 If you have YTD and Yearly returns, you can leave this
+                  blank. The overall total across all platforms is
+                  auto-calculated for charts.
                 </span>
               </StyledLabel>
               <StyledInput
@@ -335,34 +392,42 @@ const AddPerformance = () => {
             <StyledFormGroup>
               <StyledLabel>
                 Monthly Return (%) (Optional)
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem"
-                }}>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                  }}
+                >
                   Return for this specific month only (not cumulative)
                 </span>
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem",
-                  fontStyle: "italic"
-                }}>
-                  Example: For April 2022, this is the return from April 1 to April 30, 2022 only
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Example: For April 2022, this is the return from April 1 to
+                  April 30, 2022 only
                 </span>
-                <span style={{ 
-                  fontSize: "12px", 
-                  fontWeight: "normal", 
-                  opacity: 0.7,
-                  display: "block",
-                  marginTop: "0.25rem",
-                  color: colours.pink
-                }}>
-                  💡 Required if YTD Return is not provided. Used for calculating cumulative returns in charts.
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "normal",
+                    opacity: 0.7,
+                    display: "block",
+                    marginTop: "0.25rem",
+                    color: colours.pink,
+                  }}
+                >
+                  💡 Required if YTD Return is not provided. Used for
+                  calculating cumulative returns in charts.
                 </span>
               </StyledLabel>
               <StyledInput

@@ -6,7 +6,14 @@ import SEO from "../../src/components/SEO";
 import styled from "styled-components";
 import { colours } from "../../src/utils/style.utils";
 import CallToActionButton from "../../src/components/buttons/action/CallToActionButton";
-import { collection, getDocs, deleteDoc, doc, query, orderBy } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  deleteDoc,
+  doc,
+  query,
+  orderBy,
+} from "firebase/firestore";
 import { db } from "../../src/config/firebase";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -37,7 +44,7 @@ const StyledHeaderActions = styled.div`
   gap: 1rem;
   margin-bottom: 2rem;
   flex-wrap: wrap;
-  
+
   > * {
     max-width: 300px;
     flex: 0 1 auto;
@@ -258,13 +265,17 @@ const ManagePerformance = () => {
               </StyledTableHeader>
               {entries.map((entry) => {
                 const platform = entry.platform || "total";
-                const platformName = 
-                  platform === "cfd212" ? "CFD 212" :
-                  platform === "inv212" ? "INV 212" :
-                  platform === "etoro" ? "eToro" :
-                  platform === "hl" ? "HL" :
-                  "Total";
-                
+                const platformName =
+                  platform === "cfd212"
+                    ? "ACC 212"
+                    : platform === "inv212"
+                    ? "INV 212"
+                    : platform === "etoro"
+                    ? "eToro"
+                    : platform === "hl"
+                    ? "HL"
+                    : "Total";
+
                 return (
                   <StyledTableRow key={entry.id}>
                     <StyledTableCell label="Date">
@@ -278,7 +289,8 @@ const ManagePerformance = () => {
                       {entry.ytdReturn?.toFixed(2) || "0.00"}%
                     </StyledTableCell>
                     <StyledTableCell label="Yearly Return">
-                      {entry.yearlyReturn != null && entry.yearlyReturn !== 0 ? (
+                      {entry.yearlyReturn != null &&
+                      entry.yearlyReturn !== 0 ? (
                         <>
                           {entry.yearlyReturn > 0 ? "+" : ""}
                           {entry.yearlyReturn.toFixed(2)}%
