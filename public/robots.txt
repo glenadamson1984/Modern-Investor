@@ -1,4 +1,2 @@
 User-agent: *
 Allow: /
-
-Sitemap: https://moderninvestments.co.uk/sitemap.xml
