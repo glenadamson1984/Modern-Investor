@@ -44,3 +44,7 @@ Changes to the bundled seed apply to new browsers only, so future deployments ne
 ## Validation
 
 `npm test` checks exact import values, ISO week boundaries, weighted daily and weekly pace, missing-data behavior, weight alignment and leap days, validation, backup round-trips, merges, and persistence including deletions and corruption. `npm run lint` and `npm run build` validate the Next.js application. Interactive charts also have text tables for accessing their underlying values.
+
+## Full-year benchmarks
+
+Distance and Pace include a year outlook showing every ISO week through year-end. The comparison year remains visible for the remainder of the year as a weekly benchmark. The primary year shows recorded weeks only; missing weeks are blank, with no projected actual values. A remaining-weeks table shows benchmark totals, recorded results, and distance still needed to match each week. View week opens the existing daily comparison. Weekly pace uses total moving time / total distance. Weight charts extend to December 31 without adding observations. New records update all views automatically.

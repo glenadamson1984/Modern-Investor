@@ -201,3 +201,17 @@ test("duration accepts hours and rejects ambiguous or invalid entries", () => {
   assert.throws(() => parseDuration("1:65:00"));
   assert.throws(() => parseDuration("0:00"));
 });
+
+test('full-year benchmarks include remaining comparison weeks without inventing current observations', async () => {
+  const { yearlyWeeks } = await import('../src/lib/progress.mjs');
+  const rows = yearlyWeeks([run('old', '2025-12-22', 12, 3600), run('new', '2026-11-02', 5, 1800)], 2026, 2025);
+  assert.equal(rows.length, 53);
+  assert.equal(rows[51].y2025, 12);
+  assert.equal(rows[51].y2026, null);
+  assert.equal(rows[51].pace2025, 300);
+  assert.equal(rows[44].y2026, 5);
+  assert.equal(rows[52].y2025, null);
+  const updated = yearlyWeeks([run('old', '2025-12-22', 12, 3600), run('new', '2026-12-21', 8, 3200)], 2026, 2025);
+  assert.equal(updated[51].y2026, 8);
+  assert.equal(updated[51].pace2026, 400);
+});

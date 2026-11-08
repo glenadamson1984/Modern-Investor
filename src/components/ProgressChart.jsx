@@ -37,7 +37,7 @@ function ChartTooltip({ active, payload, label, mode }) {
     </div>
   );
 }
-export default function ProgressChart({ data, years, mode, empty }) {
+export default function ProgressChart({ data, years, mode, empty, annual = false, selectedWeek }) {
   const weight = mode === "weight",
     pace = mode === "pace";
   return (
@@ -48,8 +48,8 @@ export default function ProgressChart({ data, years, mode, empty }) {
         weight
           ? "Actual weight observations by month and day. Values are also listed in the weigh-in table."
           : `${
-              pace ? "Daily and cumulative average pace" : "Cumulative distance"
-            } by weekday. Values are also listed in the weekly breakdown.`
+              annual ? "Full-year weekly targets and recorded results" : pace ? "Daily and cumulative average pace" : "Cumulative distance"
+            } ${annual ? "by ISO week" : "by weekday"}. Values are also listed in the weekly breakdown.`
       }
     >
       {empty ? (
@@ -69,13 +69,13 @@ export default function ProgressChart({ data, years, mode, empty }) {
             <XAxis
               dataKey="day"
               type={weight ? "number" : "category"}
-              domain={weight ? ["dataMin - 2", "dataMax + 2"] : undefined}
+              domain={weight ? [(min) => Math.max(1, min - 2), 366] : undefined}
               tickFormatter={weight ? calendarLabel : undefined}
               tick={{ fill: "#a7a7ad", fontSize: 12 }}
               tickLine={false}
               axisLine={false}
               minTickGap={24}
-              interval={weight ? "preserveStartEnd" : 0}
+              interval={weight || annual ? "preserveStartEnd" : 0}
               dy={10}
             />
             <YAxis
@@ -101,6 +101,7 @@ export default function ProgressChart({ data, years, mode, empty }) {
               cursor={{ stroke: "#ffffff30", strokeDasharray: "4 4" }}
               filterNull
             />
+            {annual && selectedWeek && <ReferenceLine x={`W${selectedWeek}`} stroke="#ffffff40" strokeDasharray="4 4" />}
             {weight && (
               <ReferenceLine
                 y={TARGET_KG}
@@ -115,7 +116,7 @@ export default function ProgressChart({ data, years, mode, empty }) {
               />
             )}
             {years.map((year, i) =>
-              pace ? (
+              pace && !annual ? (
                 <Line
                   key={`${year}-daily`}
                   type="linear"

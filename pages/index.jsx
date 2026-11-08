@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import seed from "../src/data/seed.json";
 import DataManager from "../src/components/DataManager";
+import YearOutlook from "../src/components/YearOutlook";
 import {
   DAYS,
   distanceDifference,
@@ -436,7 +437,8 @@ export default function Home() {
                   </>
                 )}
               </div>
-              <section className="panel chart-panel">
+              {tab !== "Weight" && <YearOutlook runs={data.runs} year={year} comparison={comparison} week={week} mode={tab.toLowerCase()} onSelectWeek={(next) => { setWeek(next); document.getElementById("weekly-chart")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />}
+              <section className="panel chart-panel" id="weekly-chart">
                 <div className="section-heading">
                   <div>
                     <span className="eyebrow">

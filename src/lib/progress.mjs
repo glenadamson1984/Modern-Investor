@@ -223,3 +223,25 @@ export function mergeData(current, incoming) {
     }
   return validateData(next);
 }
+
+// Use recorded weekly totals only. An unrecorded week is not a zero or forecast.
+export function yearlyWeeks(runs, primaryYear, comparisonYear) {
+  const count = Math.max(weeksInYear(primaryYear), weeksInYear(comparisonYear));
+  return Array.from({ length: count }, (_, index) => {
+    const week = index + 1;
+    const primary = weeklySeries(runs, primaryYear, week);
+    const comparison = weeklySeries(runs, comparisonYear, week);
+    return {
+      week,
+      day: `W${week}`,
+      [`y${primaryYear}`]: primary.hasData ? primary.distance : null,
+      [`y${comparisonYear}`]: comparison.hasData ? comparison.distance : null,
+      [`pace${primaryYear}`]: primary.pace,
+      [`pace${comparisonYear}`]: comparison.pace,
+      [`date${primaryYear}`]: primary.dates[0] || null,
+      [`date${comparisonYear}`]: comparison.dates[0] || null,
+      primaryDates: primary.dates,
+      comparisonDates: comparison.dates,
+    };
+  });
+}
