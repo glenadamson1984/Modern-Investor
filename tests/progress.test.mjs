@@ -325,3 +325,41 @@ test("weekly briefing excludes future runs and weigh-ins, handles missing benchm
   assert.equal(boundary.week, 53);
   assert.equal(boundary.previous.dates.length, 0);
 });
+
+test("historical briefing finds the strongest equivalent week across all previous running years", async () => {
+  const { weeklySummary } = await import("../src/lib/weekly-summary.mjs");
+  const s = weeklySummary(seed, "2026-11-08");
+  assert.equal(s.bestWeek.year, 2023);
+  assert.ok(Math.abs(s.bestWeek.distance - 59.4595) < 1e-8);
+  assert.equal(formatPace(s.bestWeek.pace), "5:55");
+  assert.equal(s.historyWeeks.length, 3);
+  assert.ok(Math.abs(s.bestRemainingKm - 18.9965) < 1e-8);
+  assert.equal(s.comparison, 2025);
+  assert.ok(Math.abs(s.previous.distance - 29.6991) < 1e-8);
+});
+test("historical distance and pace bests are separate, weighted, and exclude missing, future and current weeks", async () => {
+  const { weeklySummary } = await import("../src/lib/weekly-summary.mjs");
+  const data = {
+    ...empty,
+    runs: [
+      run("a", "2023-11-06", 10, 3600),
+      run("b", "2023-11-07", 20, 6000),
+      run("c", "2024-11-04", 5, 1500),
+      run("zero", "2022-11-07", 0, 500),
+      run("otherweek", "2025-10-01", 200, 60000),
+      run("current", "2026-11-02", 40, 12000),
+      run("future", "2027-11-08", 100, 30000),
+    ],
+  };
+  const s = weeklySummary(data, "2026-11-08");
+  assert.equal(s.bestWeek.year, 2023);
+  assert.equal(s.bestWeek.distance, 30);
+  assert.equal(s.bestWeek.pace, 320);
+  assert.equal(s.fastestWeek.year, 2024);
+  assert.equal(s.fastestWeek.pace, 300);
+  assert.equal(s.historyWeeks.length, 2);
+  assert.equal(s.bestAheadKm, 10);
+  assert.equal(s.bestRemainingKm, 0);
+  assert.equal(s.previous.hasData, false);
+  assert.equal(weeklySummary(empty, "2026-11-08").bestWeek, null);
+});

@@ -251,6 +251,30 @@ export default function Home() {
                 It’s {now.toLocaleDateString("en-GB", { weekday: "long" })} of
                 week {week}. Here’s your aim.
               </h2>
+              {summary.bestWeek && (
+                <p className="brief-history">
+                  Your highest-distance <strong>week {week}</strong> in previous
+                  years was in <strong>{summary.bestWeek.year}</strong>:{" "}
+                  <strong>{km(summary.bestWeek.distance)} km</strong> at{" "}
+                  <strong>{formatPace(summary.bestWeek.pace)}/km</strong>.
+                  That’s the strongest distance benchmark across{" "}
+                  {summary.historyWeeks.length} previous{" "}
+                  {summary.historyWeeks.length === 1 ? "year" : "years"} with
+                  running records for this week.
+                  {summary.fastestWeek &&
+                    summary.fastestWeek.year !== summary.bestWeek.year && (
+                      <>
+                        {" "}
+                        Your fastest equivalent week was{" "}
+                        {summary.fastestWeek.year}, averaging{" "}
+                        <strong>
+                          {formatPace(summary.fastestWeek.pace)}/km
+                        </strong>{" "}
+                        over {km(summary.fastestWeek.distance)} km.
+                      </>
+                    )}
+                </p>
+              )}
               <p>
                 {summary.previous.hasData ? (
                   <>
@@ -260,35 +284,38 @@ export default function Home() {
                     ran <strong>{km(summary.previous.distance)} km</strong> at
                     an average pace of{" "}
                     <strong>{formatPace(summary.previous.pace)}/km</strong>.
-                    Your benchmark this week is to exceed that distance and, if
-                    you’re aiming for speed, beat that pace.
+                    This remains your year-on-year comparison.
                   </>
                 ) : (
                   <>
                     There are no recorded runs for the equivalent week in{" "}
-                    {comparison}, so there’s no weekly distance or pace
-                    benchmark yet.
+                    {comparison}.{" "}
+                    {summary.bestWeek
+                      ? "Earlier years still provide the historical benchmark above."
+                      : "There is no measured historical benchmark for this week yet."}
                   </>
                 )}
               </p>
               <div className="brief-action">
-                {summary.remainingKm == null ? (
-                  "Log your runs to build your weekly picture."
-                ) : summary.aheadKm > 0 ? (
+                {summary.bestRemainingKm == null ? (
+                  "Log your runs to build a benchmark for this week."
+                ) : summary.bestAheadKm > 0 ? (
                   <>
-                    Distance benchmark beaten by{" "}
-                    <strong>{km(summary.aheadKm)} km</strong>. Keep building on
-                    it.
+                    You’ve beaten every recorded previous week {week} by{" "}
+                    <strong>{km(summary.bestAheadKm)} km</strong>. A new
+                    distance best for this period.
                   </>
-                ) : summary.remainingKm === 0 ? (
+                ) : summary.bestRemainingKm === 0 ? (
                   <>
-                    You’ve matched last year’s distance. Your next kilometre
-                    puts you ahead.
+                    You’ve matched your highest recorded week {week} (
+                    {summary.bestWeek.year}). Your next kilometre puts you
+                    ahead.
                   </>
                 ) : (
                   <>
-                    <strong>{km(summary.remainingKm)} km</strong> more to match
-                    last year’s week; go a little further to exceed it.
+                    <strong>{km(summary.bestRemainingKm)} km</strong> more to
+                    match your {summary.bestWeek.year} week {week} distance.
+                    That’s your stretch benchmark.
                   </>
                 )}
               </div>

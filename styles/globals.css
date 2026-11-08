@@ -1316,3 +1316,8 @@ footer > span:last-child {
     font-size: 11px;
   }
 }
+
+.weekly-brief .brief-history {
+  margin-bottom: 12px;
+  color: #e2dce0;
+}

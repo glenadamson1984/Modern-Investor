@@ -14,6 +14,19 @@ export function weeklySummary(data, today) {
     week
   );
   const previous = weeklySeries(data.runs, comparison, week);
+  const historicalYears = [
+    ...new Set(data.runs.map((r) => isoWeek(r.date).year)),
+  ].filter((y) => y < year);
+  const historyWeeks = historicalYears
+    .map((y) => ({ year: y, ...weeklySeries(data.runs, y, week) }))
+    .filter((s) => s.hasData);
+  const bestWeek =
+    [...historyWeeks].sort(
+      (a, b) => b.distance - a.distance || b.year - a.year
+    )[0] || null;
+  const fastestWeek =
+    [...historyWeeks].sort((a, b) => a.pace - b.pace || b.year - a.year)[0] ||
+    null;
   const dayIndex = current.dates.indexOf(today);
   const priorToDay = previous.points[dayIndex]?.distance ?? null;
   const currentWeights = data.weights
@@ -40,6 +53,15 @@ export function weeklySummary(data, today) {
     current,
     previous,
     priorToDay,
+    historyWeeks,
+    bestWeek,
+    fastestWeek,
+    bestRemainingKm: bestWeek
+      ? Math.max(0, bestWeek.distance - current.distance)
+      : null,
+    bestAheadKm: bestWeek
+      ? Math.max(0, current.distance - bestWeek.distance)
+      : null,
     currentWeight,
     weightThisWeek,
     previousWeight: priorWeights.at(-1) || null,
