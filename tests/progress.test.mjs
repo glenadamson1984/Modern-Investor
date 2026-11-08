@@ -33,7 +33,7 @@ const empty = { version: 1, runs: [], weights: [] };
 test("StatsHunters import retains all 466 runs, exact recent distances and moving times", () => {
   const data = validateData(seed);
   assert.equal(data.runs.length, 466);
-  assert.equal(data.weights.length, 16);
+  assert.equal(data.weights.length, 851);
   assert.equal(data.runs.filter((r) => r.distanceKm === 0).length, 14);
   assert.deepEqual(
     data.runs
@@ -98,7 +98,12 @@ test("missing weeks stay missing and a zero baseline does not produce infinity",
 });
 test("weight alignment preserves exact observations, leap-day calendar and missing values", () => {
   assert.equal(dayOfYear("2025-11-05"), dayOfYear("2026-11-05"));
-  const points = weightSeries(seed.weights, [2026, 2025]);
+  const points = weightSeries(
+    seed.weights
+      .filter((r) => r.id.startsWith("weight-"))
+      .map(({ time, ...r }) => r),
+    [2026, 2025]
+  );
   assert.equal(points.filter((p) => p.y2026 !== null).length, 3);
   assert.equal(points.filter((p) => p.y2025 !== null).length, 13);
   const nov5 = points.find((p) => p.day === dayOfYear("2026-11-05"));
@@ -136,7 +141,7 @@ test("JSON and CSV backups round-trip every value and imports are validated atom
       ...empty,
       weights: [
         { id: "a", date: "2026-01-01", weightKg: 80 },
-        { id: "b", date: "2026-01-01", weightKg: 81 },
+        { id: "b", date: "2026-01-01", weightKg: 81, time: "25:00" },
       ],
     })
   );
@@ -202,16 +207,71 @@ test("duration accepts hours and rejects ambiguous or invalid entries", () => {
   assert.throws(() => parseDuration("0:00"));
 });
 
-test('full-year benchmarks include remaining comparison weeks without inventing current observations', async () => {
-  const { yearlyWeeks } = await import('../src/lib/progress.mjs');
-  const rows = yearlyWeeks([run('old', '2025-12-22', 12, 3600), run('new', '2026-11-02', 5, 1800)], 2026, 2025);
+test("full-year benchmarks include remaining comparison weeks without inventing current observations", async () => {
+  const { yearlyWeeks } = await import("../src/lib/progress.mjs");
+  const rows = yearlyWeeks(
+    [run("old", "2025-12-22", 12, 3600), run("new", "2026-11-02", 5, 1800)],
+    2026,
+    2025
+  );
   assert.equal(rows.length, 53);
   assert.equal(rows[51].y2025, 12);
   assert.equal(rows[51].y2026, null);
   assert.equal(rows[51].pace2025, 300);
   assert.equal(rows[44].y2026, 5);
   assert.equal(rows[52].y2025, null);
-  const updated = yearlyWeeks([run('old', '2025-12-22', 12, 3600), run('new', '2026-12-21', 8, 3200)], 2026, 2025);
+  const updated = yearlyWeeks(
+    [run("old", "2025-12-22", 12, 3600), run("new", "2026-12-21", 8, 3200)],
+    2026,
+    2025
+  );
   assert.equal(updated[51].y2026, 8);
   assert.equal(updated[51].pace2026, 400);
+});
+
+test("all 851 PDF weight observations, including same-day readings, survive charts and backups", () => {
+  assert.equal(seed.weights.length, 851);
+  const years = [
+    ...new Set(seed.weights.map((r) => Number(r.date.slice(0, 4)))),
+  ];
+  assert.deepEqual(years, [2020, 2021, 2022, 2023, 2024, 2025, 2026]);
+  const points = weightSeries(seed.weights, years);
+  assert.equal(
+    points.reduce(
+      (sum, p) => sum + years.filter((y) => p[`y${y}`] != null).length,
+      0
+    ),
+    851
+  );
+  assert.equal(seed.weights.filter((r) => r.date === "2020-07-11").length, 2);
+  assert.equal(seed.weights.filter((r) => r.date === "2025-07-01").length, 4);
+  assert.deepEqual(fromCSV(toCSV(seed)), validateData(seed));
+  assert.equal(mergeData(seed, seed).weights.length, 851);
+});
+test("new weight history is additive, preserves browser edits and old seed deletions, and applies only once", async () => {
+  const { applyHistory } = await import("../src/lib/history.mjs");
+  const history = JSON.parse(
+    fs.readFileSync(new URL("../src/data/weight-history.json", import.meta.url))
+  );
+  const current = {
+    ...empty,
+    runs: [run("mine", "2026-11-08", 3, 900)],
+    weights: [{ id: "mine", date: "2026-01-02", weightKg: 81 }],
+  };
+  const imported = applyHistory(current, history);
+  assert.equal(imported.weights.find((r) => r.id === "mine").weightKg, 81);
+  assert.equal(
+    imported.weights.filter((r) => r.date === "2026-01-02").length,
+    1
+  );
+  assert.equal(
+    imported.weights.some((r) => r.id === "weight-2026-11-05"),
+    false
+  );
+  assert.deepEqual(imported.runs, current.runs);
+  const deleted = { ...imported, weights: [] };
+  assert.equal(applyHistory(deleted, history), deleted);
+  const storage = { getItem: () => JSON.stringify(deleted) };
+  assert.equal(loadData(storage, seed).weights.length, 0);
+  assert.deepEqual(loadData(storage, seed).imports, [history.id]);
 });

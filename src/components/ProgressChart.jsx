@@ -9,7 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import { calendarLabel, formatPace, TARGET_KG } from "../lib/progress.mjs";
-const COLORS = ["#ff408b", "#7bcda4"];
+import { yearColor } from "../lib/series.mjs";
 function ChartTooltip({ active, payload, label, mode }) {
   if (!active || !payload?.length) return null;
   const actual = payload.filter((p) => p.value != null);
@@ -37,7 +37,16 @@ function ChartTooltip({ active, payload, label, mode }) {
     </div>
   );
 }
-export default function ProgressChart({ data, years, mode, empty, annual = false, selectedWeek }) {
+export default function ProgressChart({
+  data,
+  years,
+  mode,
+  empty,
+  annual = false,
+  selectedWeek,
+  primaryYear = years[0],
+  comparisonYear = years[1],
+}) {
   const weight = mode === "weight",
     pace = mode === "pace";
   return (
@@ -48,15 +57,31 @@ export default function ProgressChart({ data, years, mode, empty, annual = false
         weight
           ? "Actual weight observations by month and day. Values are also listed in the weigh-in table."
           : `${
-              annual ? "Full-year weekly targets and recorded results" : pace ? "Daily and cumulative average pace" : "Cumulative distance"
-            } ${annual ? "by ISO week" : "by weekday"}. Values are also listed in the weekly breakdown.`
+              annual
+                ? "Full-year weekly targets and recorded results"
+                : pace
+                ? "Daily and cumulative average pace"
+                : "Cumulative distance"
+            } ${
+              annual ? "by ISO week" : "by weekday"
+            }. Values are also listed in the weekly breakdown.`
       }
     >
       {empty ? (
         <div className="empty-chart">
-          <span>NO RECORDS FOR THIS SELECTION</span>
-          <h3>A fresh starting line.</h3>
-          <p>Select another week or add your data below.</p>
+          <span>
+            {years.length
+              ? "NO RECORDS FOR THIS SELECTION"
+              : "NO YEARS SELECTED"}
+          </span>
+          <h3>
+            {years.length ? "A fresh starting line." : "Choose a year to plot."}
+          </h3>
+          <p>
+            {years.length
+              ? "Select another week or add your data below."
+              : "Turn on a year using the switches above."}
+          </p>
         </div>
       ) : (
         <ResponsiveContainer width="100%" height="100%">
@@ -69,7 +94,9 @@ export default function ProgressChart({ data, years, mode, empty, annual = false
             <XAxis
               dataKey="day"
               type={weight ? "number" : "category"}
-              domain={weight ? [(min) => Math.max(1, min - 2), 366] : undefined}
+              domain={
+                weight ? [(min) => Math.max(1, min - 2), 366.999] : undefined
+              }
               tickFormatter={weight ? calendarLabel : undefined}
               tick={{ fill: "#a7a7ad", fontSize: 12 }}
               tickLine={false}
@@ -101,7 +128,13 @@ export default function ProgressChart({ data, years, mode, empty, annual = false
               cursor={{ stroke: "#ffffff30", strokeDasharray: "4 4" }}
               filterNull
             />
-            {annual && selectedWeek && <ReferenceLine x={`W${selectedWeek}`} stroke="#ffffff40" strokeDasharray="4 4" />}
+            {annual && selectedWeek && (
+              <ReferenceLine
+                x={`W${selectedWeek}`}
+                stroke="#ffffff40"
+                strokeDasharray="4 4"
+              />
+            )}
             {weight && (
               <ReferenceLine
                 y={TARGET_KG}
@@ -122,7 +155,7 @@ export default function ProgressChart({ data, years, mode, empty, annual = false
                   type="linear"
                   dataKey={`daily${year}`}
                   name={`${year} daily`}
-                  stroke={COLORS[i]}
+                  stroke={yearColor(year, primaryYear, comparisonYear)}
                   strokeWidth={1.5}
                   strokeDasharray="3 5"
                   dot={{ r: 3, strokeWidth: 0 }}
@@ -138,11 +171,11 @@ export default function ProgressChart({ data, years, mode, empty, annual = false
                 type="linear"
                 dataKey={`y${year}`}
                 name={`${year}${pace ? " weekly average" : ""}`}
-                stroke={COLORS[i]}
+                stroke={yearColor(year, primaryYear, comparisonYear)}
                 strokeWidth={3}
                 dot={{
                   r: weight ? 4 : 3,
-                  fill: COLORS[i],
+                  fill: yearColor(year, primaryYear, comparisonYear),
                   stroke: "#262626",
                   strokeWidth: 2,
                 }}

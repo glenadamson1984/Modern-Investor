@@ -69,17 +69,35 @@ export function validateData(data) {
           r.weightKg <= 0
         )
           fail();
-        return { id: r.id, date: r.date, weightKg: r.weightKg };
+        if (r.time !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(r.time))
+          fail();
+        return {
+          id: r.id,
+          date: r.date,
+          weightKg: r.weightKg,
+          ...(r.time ? { time: r.time } : {}),
+        };
       })
-      .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+      .sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          (a.time || "").localeCompare(b.time || "") ||
+          a.id.localeCompare(b.id)
+      );
   };
   const result = {
     version: 1,
     runs: clean(data.runs, "run"),
     weights: clean(data.weights, "weight"),
   };
-  if (new Set(result.weights.map((r) => r.date)).size !== result.weights.length)
-    throw new Error("Only one weigh-in per date is supported.");
+  if (data.imports !== undefined) {
+    if (
+      !Array.isArray(data.imports) ||
+      data.imports.some((id) => typeof id !== "string")
+    )
+      throw new Error("Invalid import history.");
+    result.imports = [...new Set(data.imports)];
+  }
   return result;
 }
 export function isoWeek(date) {
@@ -170,28 +188,41 @@ export function calendarLabel(day) {
   });
 }
 export function weightSeries(weights, years) {
-  const selected = weights.filter((r) =>
-    years.includes(Number(r.date.slice(0, 4)))
-  );
-  const days = [...new Set(selected.map((r) => dayOfYear(r.date)))].sort(
-    (a, b) => a - b
-  );
-  return days.map((day) => {
-    const point = { day };
-    years.forEach((year) => {
-      const r = selected.find(
-        (r) => Number(r.date.slice(0, 4)) === year && dayOfYear(r.date) === day
-      );
-      point[`y${year}`] = r?.weightKg ?? null;
-      point[`date${year}`] = r?.date ?? null;
-    });
-    return point;
-  });
+  const buckets = new Map();
+  for (const year of years) {
+    const occurrences = new Map();
+    for (const record of weights.filter(
+      (r) => Number(r.date.slice(0, 4)) === year
+    )) {
+      const minutes = record.time
+        ? Number(record.time.slice(0, 2)) * 60 + Number(record.time.slice(3))
+        : 0;
+      const day = dayOfYear(record.date) + minutes / 1440;
+      const occurrence = occurrences.get(day) || 0;
+      occurrences.set(day, occurrence + 1);
+      const key = `${day}-${occurrence}`;
+      if (!buckets.has(key))
+        buckets.set(key, {
+          day,
+          ...Object.fromEntries(years.map((y) => [`y${y}`, null])),
+        });
+      const point = buckets.get(key);
+      point[`y${year}`] = record.weightKg;
+      point[`date${year}`] = `${record.date}${
+        record.time ? ` ${record.time}` : ""
+      }`;
+    }
+  }
+  return [...buckets.values()].sort((a, b) => a.day - b.day);
 }
 export function weightSummary(weights, year) {
   const records = weights
     .filter((r) => Number(r.date.slice(0, 4)) === year)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        (a.time || "").localeCompare(b.time || "")
+    );
   const latest = records.at(-1),
     first = records[0],
     previous = records.at(-2);
@@ -205,6 +236,7 @@ export function weightSummary(weights, year) {
 }
 export function mergeData(current, incoming) {
   const next = {
+    ...current,
     version: 1,
     runs: [...current.runs],
     weights: [...current.weights],
@@ -212,8 +244,7 @@ export function mergeData(current, incoming) {
   for (const kind of ["runs", "weights"])
     for (const record of incoming[kind]) {
       let index = next[kind].findIndex((r) => r.id === record.id);
-      if (index < 0 && kind === "weights")
-        index = next.weights.findIndex((r) => r.date === record.date);
+
       if (index < 0 && kind === "runs" && !record.estimated)
         index = next.runs.findIndex(
           (r) => r.date === record.date && r.estimated
@@ -225,8 +256,17 @@ export function mergeData(current, incoming) {
 }
 
 // Use recorded weekly totals only. An unrecorded week is not a zero or forecast.
-export function yearlyWeeks(runs, primaryYear, comparisonYear) {
-  const count = Math.max(weeksInYear(primaryYear), weeksInYear(comparisonYear));
+export function yearlyWeeks(
+  runs,
+  primaryYear,
+  comparisonYear,
+  includedYears = []
+) {
+  const count = Math.max(
+    weeksInYear(primaryYear),
+    weeksInYear(comparisonYear),
+    ...includedYears.map(weeksInYear)
+  );
   return Array.from({ length: count }, (_, index) => {
     const week = index + 1;
     const primary = weeklySeries(runs, primaryYear, week);

@@ -41,17 +41,11 @@ export default function DataManager({ data, onSave, blocked, onRecover }) {
             estimated: f.get("estimated") === "on",
           }
         : {
-            id: editing?.id || `weight-${date}`,
+            id: editing?.id || crypto.randomUUID(),
             date,
             weightKg: Number(f.get("weightKg")),
+            ...(f.get("time") ? { time: f.get("time") } : {}),
           };
-      if (
-        !isRun &&
-        data.weights.some((r) => r.date === date && r.id !== editing?.id)
-      )
-        throw new Error(
-          "A weigh-in already exists on this date. Edit that record instead."
-        );
       const records = editing
         ? data[kind].map((r) => (r.id === editing.id ? record : r))
         : [...data[kind], record];
@@ -119,7 +113,7 @@ export default function DataManager({ data, onSave, blocked, onRecover }) {
     }
   }
   const records = [...data[kind]].sort(
-    (a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id)
+    (a, b) => b.date.localeCompare(a.date) || (b.time || "").localeCompare(a.time || "") || a.id.localeCompare(b.id)
   );
   return (
     <section
@@ -161,8 +155,8 @@ export default function DataManager({ data, onSave, blocked, onRecover }) {
             {pending.weights.length} weigh-ins.
           </strong>
           <p>
-            Merge updates matching IDs and weigh-in dates. Replace restores the
-            complete backup and removes records absent from it.
+            Merge updates matching IDs. Replace restores the complete backup and
+            removes records absent from it.
           </p>
           <div className="button-group">
             <button disabled={blocked} onClick={() => applyImport(false)}>
@@ -240,18 +234,28 @@ export default function DataManager({ data, onSave, blocked, onRecover }) {
             </label>
           </>
         ) : (
-          <label>
-            Weight (kg)
-            <input
-              name="weightKg"
-              type="number"
-              min="0.1"
-              step="any"
-              placeholder="79.5"
-              required
-              defaultValue={editing?.weightKg ?? ""}
-            />
-          </label>
+          <>
+            <label>
+              Time (optional)
+              <input
+                name="time"
+                type="time"
+                defaultValue={editing?.time || ""}
+              />
+            </label>
+            <label>
+              Weight (kg)
+              <input
+                name="weightKg"
+                type="number"
+                min="0.1"
+                step="any"
+                placeholder="79.5"
+                required
+                defaultValue={editing?.weightKg ?? ""}
+              />
+            </label>
+          </>
         )}
         <div className="button-group">
           <button className="primary" type="submit" disabled={blocked}>
@@ -277,7 +281,7 @@ export default function DataManager({ data, onSave, blocked, onRecover }) {
       <p className="muted">
         {isRun
           ? "Exact StatsHunters distances and moving times are included. Zero-distance records are retained but excluded from pace averages."
-          : "One actual weigh-in per date. Add measurements for any year; the comparison selectors update automatically."}
+          : "All actual weigh-ins are retained, including multiple readings per day. Add measurements for any year; the comparison selectors update automatically."}
       </p>
       <div className="table-scroll log-table">
         <table>
@@ -302,6 +306,7 @@ export default function DataManager({ data, onSave, blocked, onRecover }) {
               <tr key={r.id}>
                 <td>
                   {r.date}
+                  {r.time && <small>{r.time}</small>}
                   {r.estimated && <span className="estimate">estimate</span>}
                 </td>
                 <td>
@@ -377,12 +382,15 @@ export default function DataManager({ data, onSave, blocked, onRecover }) {
         <summary>CSV format and importing future activities</summary>
         <p>
           Use the exported CSV as your template. Columns:{" "}
-          <code>kind,id,date,distanceKm,movingSeconds,weightKg,estimated</code>.
-          Set kind to run or weight, use YYYY-MM-DD dates, kilometres, seconds
+          <code>
+            kind,id,date,distanceKm,movingSeconds,weightKg,estimated,time
+          </code>
+          . Set kind to run or weight, use YYYY-MM-DD dates, kilometres, seconds
           of moving time and kilograms. Leave irrelevant fields blank. IDs are
           optional for new CSV rows and must be retained when editing exports.
-          Import the same IDs to update existing runs. Weigh-ins match by date.
-          Exact imported runs replace estimated records on the same date.
+          Import the same IDs to update existing runs. Weigh-ins match by ID;
+          optional time uses HH:mm. Exact imported runs replace estimated
+          records on the same date.
         </p>
         <p>
           For a future StatsHunters export, convert running rows to this CSV

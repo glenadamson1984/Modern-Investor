@@ -1197,5 +1197,53 @@ footer > span:last-child {
   }
 }
 
-.year-outlook .week-detail { font-size: 10px; padding: 8px 12px; white-space: nowrap; }
-.year-outlook .import-help summary { color: #dedee2; font-weight: 500; padding-bottom: 14px; }
+.year-outlook .week-detail {
+  font-size: 10px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+.year-outlook .import-help summary {
+  color: #dedee2;
+  font-weight: 500;
+  padding-bottom: 14px;
+}
+
+.year-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+.year-switches button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.year-switches button[aria-pressed="false"] {
+  opacity: 0.5;
+}
+.year-switches button[aria-pressed="true"] {
+  border-color: #ffffff55;
+  background: #ffffff08;
+}
+.year-switches button span {
+  font-size: 10px;
+  margin-left: 8px;
+}
+.year-selector .section-heading {
+  flex-wrap: wrap;
+}
+.year-selector .section-heading p {
+  max-width: 580px;
+}
+
+.weight-history-table {
+  max-height: 440px;
+}
+.weight-history-table thead {
+  position: sticky;
+  top: 0;
+  background: #292929;
+  z-index: 1;
+}

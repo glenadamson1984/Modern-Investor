@@ -4,6 +4,10 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import seed from "../src/data/seed.json";
 import DataManager from "../src/components/DataManager";
+import YearSelector from "../src/components/YearSelector";
+import history from "../src/data/weight-history.json";
+import { applyHistory } from "../src/lib/history.mjs";
+import { yearColor } from "../src/lib/series.mjs";
 import YearOutlook from "../src/components/YearOutlook";
 import {
   DAYS,
@@ -60,10 +64,13 @@ export default function Home() {
   const [year, setYear] = useState(2026),
     [comparison, setComparison] = useState(2025),
     [week, setWeek] = useState(45);
+  const [visibleYears, setVisibleYears] = useState(null);
   const [showManager, setShowManager] = useState(false);
   useEffect(() => {
     try {
-      const loaded = loadData(window.localStorage, seed);
+      const saved = loadData(window.localStorage, seed);
+      const loaded = applyHistory(saved, history);
+      if (loaded !== saved) saveData(window.localStorage, loaded);
       setData(loaded);
       const latest = loaded.runs.at(-1);
       if (latest) {
@@ -112,7 +119,16 @@ export default function Home() {
     if (blocked)
       throw new Error("Resolve the browser storage warning before editing.");
     try {
-      const clean = saveData(window.localStorage, next);
+      const clean = saveData(window.localStorage, {
+        ...next,
+        imports: [
+          ...new Set([
+            ...(data?.imports || []),
+            ...(next.imports || []),
+            history.id,
+          ]),
+        ],
+      });
       setData(clean);
       setStorageError("");
     } catch (e) {
@@ -122,13 +138,23 @@ export default function Home() {
     }
   }
   function recover(next) {
-    const clean = saveData(window.localStorage, next);
+    const clean = saveData(window.localStorage, {
+      ...next,
+      imports: [
+        ...new Set([
+          ...(data?.imports || []),
+          ...(next.imports || []),
+          history.id,
+        ]),
+      ],
+    });
     setData(clean);
     setBlocked(false);
     setStorageError("");
   }
   function changeYear(value, secondary = false) {
     const next = Number(value);
+    setVisibleYears(null);
     if (secondary) {
       if (next === year) setYear(comparison);
       setComparison(next);
@@ -157,19 +183,34 @@ export default function Home() {
   );
   const weight = weightSummary(data?.weights || [], year);
   const olderWeight = weightSummary(data?.weights || [], comparison);
-  const weightData = weightSeries(data?.weights || [], [year, comparison]);
-  const chartData = primary.points.map((p, i) => ({
-    day: p.day,
-    [`y${year}`]: tab === "Pace" ? p.cumulativePace : p.distance,
-    [`y${comparison}`]:
-      tab === "Pace"
-        ? previous.points[i].cumulativePace
-        : previous.points[i].distance,
-    [`daily${year}`]: p.dailyPace,
-    [`daily${comparison}`]: previous.points[i].dailyPace,
-    [`date${year}`]: p.date,
-    [`date${comparison}`]: previous.points[i].date,
-  }));
+  const recordedYears = [
+    ...new Set(
+      (tab === "Weight" ? data?.weights || [] : data?.runs || []).map((r) =>
+        tab === "Weight" ? Number(r.date.slice(0, 4)) : isoWeek(r.date).year
+      )
+    ),
+  ];
+  const availableYears = [
+    year,
+    comparison,
+    ...recordedYears
+      .filter((y) => y !== year && y !== comparison)
+      .sort((a, b) => b - a),
+  ];
+  const chartYears = availableYears.filter((y) =>
+    (visibleYears || [year, comparison]).includes(y)
+  );
+  const weightData = weightSeries(data?.weights || [], chartYears);
+  const chartData = DAYS.map((day, i) => {
+    const point = { day };
+    chartYears.forEach((y) => {
+      const p = weeklySeries(data?.runs || [], y, week).points[i];
+      point[`y${y}`] = tab === "Pace" ? p.cumulativePace : p.distance;
+      point[`daily${y}`] = p.dailyPace;
+      point[`date${y}`] = p.date;
+    });
+    return point;
+  });
   const paceDiff =
     primary.pace != null && previous.pace != null
       ? primary.pace - previous.pace
@@ -437,7 +478,29 @@ export default function Home() {
                   </>
                 )}
               </div>
-              {tab !== "Weight" && <YearOutlook runs={data.runs} year={year} comparison={comparison} week={week} mode={tab.toLowerCase()} onSelectWeek={(next) => { setWeek(next); document.getElementById("weekly-chart")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />}
+              <YearSelector
+                years={availableYears}
+                selected={chartYears}
+                year={year}
+                comparison={comparison}
+                onChange={setVisibleYears}
+              />
+              {tab !== "Weight" && (
+                <YearOutlook
+                  chartYears={chartYears}
+                  runs={data.runs}
+                  year={year}
+                  comparison={comparison}
+                  week={week}
+                  mode={tab.toLowerCase()}
+                  onSelectWeek={(next) => {
+                    setWeek(next);
+                    document
+                      .getElementById("weekly-chart")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                />
+              )}
               <section className="panel chart-panel" id="weekly-chart">
                 <div className="section-heading">
                   <div>
@@ -493,14 +556,15 @@ export default function Home() {
                   )}
                 </div>
                 <div className="chart-legend">
-                  <span>
-                    <i className="legend-dot pink" />
-                    {year}
-                  </span>
-                  <span>
-                    <i className="legend-dot green" />
-                    {comparison}
-                  </span>
+                  {chartYears.map((y) => (
+                    <span key={y}>
+                      <i
+                        className="legend-dot"
+                        style={{ background: yearColor(y, year, comparison) }}
+                      />
+                      {y}
+                    </span>
+                  ))}
                   {tab === "Pace" && (
                     <span className="legend-note">
                       Solid: weekly average · Dotted: daily pace
@@ -512,12 +576,16 @@ export default function Home() {
                 </div>
                 <ProgressChart
                   mode={tab.toLowerCase()}
-                  years={[year, comparison]}
+                  years={chartYears}
+                  primaryYear={year}
+                  comparisonYear={comparison}
                   data={tab === "Weight" ? weightData : chartData}
                   empty={
                     tab === "Weight"
                       ? !weightData.length
-                      : !primary.hasData && !previous.hasData
+                      : !chartData.some((p) =>
+                          chartYears.some((y) => p[`y${y}`] != null)
+                        )
                   }
                 />
                 <div className="chart-footnote">
@@ -580,7 +648,7 @@ export default function Home() {
                         </div>
                       ))}
                     </div>
-                    <div className="table-scroll">
+                    <div className="table-scroll weight-history-table">
                       <table>
                         <caption className="sr-only">
                           Actual weight measurements for the selected years
@@ -596,14 +664,15 @@ export default function Home() {
                         <tbody>
                           {data.weights
                             .filter((r) =>
-                              [year, comparison].includes(
-                                Number(r.date.slice(0, 4))
-                              )
+                              chartYears.includes(Number(r.date.slice(0, 4)))
                             )
-                            .sort((a, b) => b.date.localeCompare(a.date))
+                            .sort((a, b) => b.date.localeCompare(a.date) || (b.time || "").localeCompare(a.time || ""))
                             .map((r) => (
                               <tr key={r.id}>
-                                <td>{r.date}</td>
+                                <td>
+                                  {r.date}
+                                  {r.time && <small>{r.time}</small>}
+                                </td>
                                 <td>{r.date.slice(0, 4)}</td>
                                 <td>{r.weightKg} kg</td>
                                 <td>{signed(r.weightKg - TARGET_KG)} kg</td>

@@ -8,6 +8,7 @@ const FIELDS = [
   "movingSeconds",
   "weightKg",
   "estimated",
+  "time",
 ];
 export function toCSV(data) {
   return Papa.unparse(
@@ -22,6 +23,7 @@ export function toCSV(data) {
           r.movingSeconds,
           "",
           r.estimated,
+          "",
         ]),
         ...data.weights.map((r) => [
           "weight",
@@ -31,6 +33,7 @@ export function toCSV(data) {
           "",
           r.weightKg,
           "",
+          r.time || "",
         ]),
       ],
     },
@@ -66,9 +69,10 @@ export function fromCSV(text) {
       });
     } else
       data.weights.push({
-        id: row.id || `weight-${row.date}`,
+        id: row.id || `weight-${row.date}-${row.time || ""}-${row.weightKg}`,
         date: row.date,
         weightKg: row.weightKg?.trim() ? Number(row.weightKg) : NaN,
+        ...(row.time?.trim() ? { time: row.time.trim() } : {}),
       });
   }
   return validateData(data);
