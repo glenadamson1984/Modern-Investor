@@ -257,6 +257,17 @@ export default function Home() {
                 It’s {now.toLocaleDateString("en-GB", { weekday: "long" })} of
                 week {week}. Here’s your aim.
               </h2>
+              <p className="brief-weight">
+                <span className="weight-brief-label">WEIGHT</span>
+                {summary.currentWeight ? <>
+                  Your {summary.weightThisWeek ? "latest weigh-in this week" : "latest recorded weigh-in"} is <strong>{summary.currentWeight.weightKg} kg</strong> ({shortDate(summary.currentWeight.date)} {summary.currentWeight.date.slice(0,4)}).
+                </> : "No current weigh-in is recorded."}{" "}
+                {summary.previousWeight ? <>
+                  In the equivalent week last year, your last weigh-in was <strong>{summary.previousWeight.weightKg} kg</strong> ({shortDate(summary.previousWeight.date)} {comparison}).
+                  {summary.currentWeight && <> {summary.currentWeight.weightKg === summary.previousWeight.weightKg ? "That matches last year’s reading." : <>That’s <strong>{Math.abs(summary.currentWeight.weightKg-summary.previousWeight.weightKg).toFixed(1)} kg {summary.currentWeight.weightKg < summary.previousWeight.weightKg ? "lower" : "higher"}</strong> than that reading.</>}</>}
+                </> : "No weigh-in was recorded in the equivalent week last year."}{" "}
+                Your target is <strong>74 kg</strong>.
+              </p>
               <p className="brief-target">{briefing.target}</p>
               <div className="brief-action">{briefing.challenge}</div>
               {briefing.pace && <p className="brief-pace">{briefing.pace}</p>}
@@ -284,31 +295,7 @@ export default function Home() {
                   ""
                 )}
               </p>
-              <p className="brief-weight">
-                {summary.previousWeight ? (
-                  <>
-                    Your last weigh-in that week in {comparison} was{" "}
-                    <strong>{summary.previousWeight.weightKg} kg</strong> (
-                    {shortDate(summary.previousWeight.date)}).
-                  </>
-                ) : (
-                  "No weight was recorded in the equivalent week last year."
-                )}
-                {summary.currentWeight ? (
-                  <>
-                    {" "}
-                    Your{" "}
-                    {summary.weightThisWeek
-                      ? "latest weigh-in this week"
-                      : "latest recorded weigh-in"}{" "}
-                    is <strong>{summary.currentWeight.weightKg} kg</strong> (
-                    {shortDate(summary.currentWeight.date)}{" "}
-                    {summary.currentWeight.date.slice(0, 4)}).
-                  </>
-                ) : (
-                  " No current weigh-in is recorded."
-                )}
-              </p>
+
             </section>
             {soberProgress && (
               <button
