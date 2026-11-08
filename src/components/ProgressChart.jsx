@@ -55,7 +55,7 @@ export default function ProgressChart({
       role="img"
       aria-label={
         weight
-          ? "Actual weight observations by month and day. Values are also listed in the weigh-in table."
+          ? "Actual weight observations by month and day. Individual observations are available in Manage data."
           : `${
               annual
                 ? "Full-year weekly targets and recorded results"
@@ -64,7 +64,7 @@ export default function ProgressChart({
                 : "Cumulative distance"
             } ${
               annual ? "by ISO week" : "by weekday"
-            }. Values are also listed in the weekly breakdown.`
+            }. Individual activities are available in Manage data.`
       }
     >
       {empty ? (

@@ -275,3 +275,53 @@ test("new weight history is additive, preserves browser edits and old seed delet
   assert.equal(loadData(storage, seed).weights.length, 0);
   assert.deepEqual(loadData(storage, seed).imports, [history.id]);
 });
+
+test("weekly briefing follows the real date, not the latest recorded run, with full-week and same-weekday benchmarks", async () => {
+  const { weeklySummary } = await import("../src/lib/weekly-summary.mjs");
+  const result = weeklySummary(seed, "2026-11-09");
+  assert.equal(result.year, 2026);
+  assert.equal(result.week, 46);
+  assert.equal(result.comparison, 2025);
+  assert.equal(result.current.distance, 0);
+  assert.equal(result.current.pace, null);
+  assert.ok(result.previous.distance > 0);
+  assert.equal(result.remainingKm, result.previous.distance);
+  assert.equal(result.currentWeight.date, "2026-11-05");
+  assert.equal(result.weightThisWeek, false);
+  const sunday = weeklySummary(seed, "2026-11-08");
+  assert.ok(Math.abs(sunday.current.distance - 40.463) < 1e-8);
+  assert.ok(Math.abs(sunday.previous.distance - 29.6991) < 1e-8);
+  assert.ok(sunday.aheadKm > 10);
+  assert.equal(sunday.remainingKm, 0);
+  assert.equal(sunday.previousWeight.date, "2025-11-07");
+  assert.equal(sunday.previousWeight.weightKg, 83.8);
+});
+test("weekly briefing excludes future runs and weigh-ins, handles missing benchmarks and ISO-year boundaries", async () => {
+  const { weeklySummary } = await import("../src/lib/weekly-summary.mjs");
+  const records = {
+    ...empty,
+    runs: [
+      run("today", "2026-11-09", 5, 1500),
+      run("future", "2026-11-10", 20, 6000),
+      run("old", "2025-11-10", 8, 3200),
+    ],
+    weights: [
+      { id: "now", date: "2026-11-09", weightKg: 79 },
+      { id: "future", date: "2026-11-10", weightKg: 78 },
+    ],
+  };
+  const monday = weeklySummary(records, "2026-11-09");
+  assert.equal(monday.current.distance, 5);
+  assert.equal(monday.current.pace, 300);
+  assert.equal(monday.remainingKm, 3);
+  assert.equal(monday.priorToDay, 8);
+  assert.equal(monday.currentWeight.weightKg, 79);
+  assert.equal(monday.previousWeight, null);
+  const missing = weeklySummary(empty, "2026-11-09");
+  assert.equal(missing.remainingKm, null);
+  assert.equal(missing.currentWeight, null);
+  const boundary = weeklySummary(empty, "2027-01-01");
+  assert.equal(boundary.year, 2026);
+  assert.equal(boundary.week, 53);
+  assert.equal(boundary.previous.dates.length, 0);
+});

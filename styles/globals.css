@@ -1247,3 +1247,72 @@ footer > span:last-child {
   background: #292929;
   z-index: 1;
 }
+.weekly-brief {
+  background: linear-gradient(120deg, #342a2f, #292929);
+  border-color: #ff408b35;
+}
+.brief-date {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  color: #b4b4ba;
+  font-size: 12px;
+  margin-bottom: 17px;
+}
+.brief-date > span {
+  font-size: 10px;
+  color: #9999a0;
+}
+.weekly-brief h2 {
+  font-size: clamp(22px, 3vw, 30px);
+  margin-bottom: 18px;
+}
+.weekly-brief p {
+  max-width: 1000px;
+  font-size: 14px;
+  color: #c7c7cd;
+  line-height: 1.9;
+}
+.weekly-brief strong {
+  color: #fff;
+  font-weight: 600;
+}
+.brief-action {
+  margin: 20px 0;
+  padding: 15px 18px;
+  border-left: 3px solid var(--pink);
+  background: #ff408b0b;
+  font-size: 17px;
+}
+.brief-action strong {
+  color: var(--pink);
+}
+.weekly-brief .brief-weight {
+  font-size: 12px;
+  margin-top: 10px;
+  color: #aaaab0;
+}
+@media (max-width: 600px) {
+  .weekly-brief p {
+    font-size: 12px;
+  }
+  .brief-date {
+    gap: 4px;
+    margin-bottom: 15px;
+  }
+  .brief-date > span {
+    width: 100%;
+  }
+  .brief-action {
+    font-size: 15px;
+    padding: 12px 14px;
+  }
+  .dashboard-controls > .muted {
+    font-size: 10px;
+    margin-top: 8px;
+  }
+  .weekly-brief .brief-weight {
+    font-size: 11px;
+  }
+}

@@ -1,49 +1,33 @@
 import Head from "next/head";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import seed from "../src/data/seed.json";
+import history from "../src/data/weight-history.json";
 import DataManager from "../src/components/DataManager";
 import YearSelector from "../src/components/YearSelector";
-import history from "../src/data/weight-history.json";
-import { applyHistory } from "../src/lib/history.mjs";
-import { yearColor } from "../src/lib/series.mjs";
 import YearOutlook from "../src/components/YearOutlook";
+import { applyHistory } from "../src/lib/history.mjs";
+import { loadData, saveData } from "../src/lib/storage.mjs";
 import {
   DAYS,
-  distanceDifference,
   formatPace,
   isoWeek,
   STORAGE_KEY,
-  TARGET_KG,
-  weeklySeries,
-  weeksInYear,
   weightSeries,
-  weightSummary,
 } from "../src/lib/progress.mjs";
-import { loadData, saveData } from "../src/lib/storage.mjs";
+import { localDateKey, weeklySummary } from "../src/lib/weekly-summary.mjs";
+import { yearColor } from "../src/lib/series.mjs";
 const ProgressChart = dynamic(() => import("../src/components/ProgressChart"), {
   ssr: false,
-  loading: () => <div className="chart-wrap loading">Loading chart…</div>,
 });
 const TABS = ["Distance", "Pace", "Weight"];
-const number = (value) =>
-  value == null
-    ? "—"
-    : value.toLocaleString("en-GB", {
-        maximumFractionDigits: 2,
-        minimumFractionDigits: 2,
-      });
-const signed = (value) =>
-  value == null ? "—" : `${value > 0 ? "+" : ""}${number(value)}`;
-const dateLabel = (date) =>
-  date
-    ? new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        timeZone: "UTC",
-      })
-    : "No dates";
+const km = (value) => (value == null ? "—" : value.toFixed(2));
+const shortDate = (value) =>
+  new Date(`${value}T12:00:00`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
 function Metric({ label, value, unit, detail, accent }) {
   return (
     <div className={`metric ${accent ? "accent" : ""}`}>
@@ -57,87 +41,45 @@ function Metric({ label, value, unit, detail, accent }) {
   );
 }
 export default function Home() {
-  const [data, setData] = useState(null);
-  const [storageError, setStorageError] = useState("");
-  const [blocked, setBlocked] = useState(false);
-  const [tab, setTab] = useState("Distance");
-  const [year, setYear] = useState(2026),
-    [comparison, setComparison] = useState(2025),
-    [week, setWeek] = useState(45);
-  const [visibleYears, setVisibleYears] = useState(null);
-  const [showManager, setShowManager] = useState(false);
+  const [data, setData] = useState(null),
+    [now, setNow] = useState(null);
+  const [tab, setTab] = useState("Distance"),
+    [visibleYears, setVisibleYears] = useState(null);
+  const [showManager, setShowManager] = useState(false),
+    [blocked, setBlocked] = useState(false),
+    [storageError, setStorageError] = useState("");
   useEffect(() => {
+    const tick = () => setNow(new Date());
+    tick();
+    const timer = setInterval(tick, 30000);
     try {
-      const saved = loadData(window.localStorage, seed);
-      const loaded = applyHistory(saved, history);
+      const saved = loadData(window.localStorage, seed),
+        loaded = applyHistory(saved, history);
       if (loaded !== saved) saveData(window.localStorage, loaded);
       setData(loaded);
-      const latest = loaded.runs.at(-1);
-      if (latest) {
-        const lastWeek = isoWeek(latest.date);
-        setYear(lastWeek.year);
-        setComparison(lastWeek.year - 1);
-        setWeek(lastWeek.week);
-      }
     } catch {
       setData({ version: 1, runs: [], weights: [] });
       setBlocked(true);
       setShowManager(true);
       setStorageError(
-        "Your saved data could not be read. It has not been overwritten. Export or recover it from browser storage before importing a replacement JSON/CSV backup. If browser storage is disabled, enable it and reload."
+        "Your saved data could not be read and has not been overwritten. Enable browser storage or recover a JSON/CSV backup."
       );
     }
-    function storageChanged(event) {
+    const changed = (event) => {
       if (event.key === STORAGE_KEY || event.key === null) {
         setBlocked(true);
-        setStorageError(
-          "The data changed in another browser tab. Reload this page before making further edits."
-        );
+        setStorageError("Data changed in another tab. Reload before editing.");
       }
-    }
-    window.addEventListener("storage", storageChanged);
-    return () => window.removeEventListener("storage", storageChanged);
+    };
+    window.addEventListener("storage", changed);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("storage", changed);
+    };
   }, []);
-  const years = useMemo(() => {
-    const set = new Set([
-      2025,
-      2026,
-      year,
-      comparison,
-      new Date().getFullYear(),
-      new Date().getFullYear() + 1,
-    ]);
-    data?.runs.forEach((r) => {
-      const y = isoWeek(r.date).year;
-      set.add(y);
-      set.add(Number(r.date.slice(0, 4)));
-    });
-    data?.weights.forEach((r) => set.add(Number(r.date.slice(0, 4))));
-    return [...set].sort((a, b) => b - a);
-  }, [data, year, comparison]);
-  function persist(next) {
-    if (blocked)
+  function save(next, recovery = false) {
+    if (blocked && !recovery)
       throw new Error("Resolve the browser storage warning before editing.");
-    try {
-      const clean = saveData(window.localStorage, {
-        ...next,
-        imports: [
-          ...new Set([
-            ...(data?.imports || []),
-            ...(next.imports || []),
-            history.id,
-          ]),
-        ],
-      });
-      setData(clean);
-      setStorageError("");
-    } catch (e) {
-      throw new Error(
-        `Changes were not saved. ${e.message} Check browser storage or export a backup.`
-      );
-    }
-  }
-  function recover(next) {
     const clean = saveData(window.localStorage, {
       ...next,
       imports: [
@@ -149,19 +91,8 @@ export default function Home() {
       ],
     });
     setData(clean);
-    setBlocked(false);
     setStorageError("");
-  }
-  function changeYear(value, secondary = false) {
-    const next = Number(value);
-    setVisibleYears(null);
-    if (secondary) {
-      if (next === year) setYear(comparison);
-      setComparison(next);
-    } else {
-      if (next === comparison) setComparison(year);
-      setYear(next);
-    }
+    if (recovery) setBlocked(false);
   }
   function openManager() {
     setShowManager(true);
@@ -173,16 +104,11 @@ export default function Home() {
       30
     );
   }
-  const primary = weeklySeries(data?.runs || [], year, week);
-  const previous = weeklySeries(data?.runs || [], comparison, week);
-  const diff = distanceDifference(
-    primary.distance,
-    previous.distance,
-    primary.hasData,
-    previous.hasData
-  );
-  const weight = weightSummary(data?.weights || [], year);
-  const olderWeight = weightSummary(data?.weights || [], comparison);
+  const today = now ? localDateKey(now) : null;
+  const summary = data && today ? weeklySummary(data, today) : null;
+  const year = summary?.year,
+    comparison = summary?.comparison,
+    week = summary?.week;
   const recordedYears = [
     ...new Set(
       (tab === "Weight" ? data?.weights || [] : data?.runs || []).map((r) =>
@@ -190,43 +116,52 @@ export default function Home() {
       )
     ),
   ];
-  const availableYears = [
-    year,
-    comparison,
-    ...recordedYears
-      .filter((y) => y !== year && y !== comparison)
-      .sort((a, b) => b - a),
-  ];
-  const chartYears = availableYears.filter((y) =>
-    (visibleYears || [year, comparison]).includes(y)
+  const availableYears = summary
+    ? [
+        year,
+        comparison,
+        ...recordedYears
+          .filter((y) => y !== year && y !== comparison)
+          .sort((a, b) => b - a),
+      ]
+    : [];
+  const chartYears = availableYears.filter(
+    (y) => visibleYears === null || visibleYears.includes(y)
   );
   const weightData = weightSeries(data?.weights || [], chartYears);
-  const chartData = DAYS.map((day, i) => {
-    const point = { day };
-    chartYears.forEach((y) => {
-      const p = weeklySeries(data?.runs || [], y, week).points[i];
-      point[`y${y}`] = tab === "Pace" ? p.cumulativePace : p.distance;
-      point[`daily${y}`] = p.dailyPace;
-      point[`date${y}`] = p.date;
+  const weeklyData = summary
+    ? DAYS.map((day, i) => ({
+        day,
+        [`y${year}`]:
+          tab === "Pace"
+            ? summary.current.points[i].cumulativePace
+            : summary.current.points[i].distance,
+        [`y${comparison}`]:
+          tab === "Pace"
+            ? summary.previous.points[i].cumulativePace
+            : summary.previous.points[i].distance,
+        [`daily${year}`]: summary.current.points[i].dailyPace,
+        [`daily${comparison}`]: summary.previous.points[i].dailyPace,
+        [`date${year}`]: summary.current.points[i].date,
+        [`date${comparison}`]: summary.previous.points[i].date,
+      }))
+    : [];
+  // Hide the rest of the current week: future days are not completed observations.
+  if (summary)
+    weeklyData.forEach((point, i) => {
+      if (summary.current.dates[i] > today) {
+        point[`y${year}`] = null;
+        point[`daily${year}`] = null;
+      }
     });
-    return point;
-  });
-  const paceDiff =
-    primary.pace != null && previous.pace != null
-      ? primary.pace - previous.pace
-      : null;
-  const maxWeeks = Math.max(weeksInYear(year), weeksInYear(comparison));
-  const displayedWeek = Math.min(week, maxWeeks);
-  useEffect(() => {
-    if (week > maxWeeks) setWeek(maxWeeks);
-  }, [week, maxWeeks]);
+  const timeZone = now ? Intl.DateTimeFormat().resolvedOptions().timeZone : "";
   return (
     <>
       <Head>
         <title>Running Progress · Glen Adamson</title>
         <meta
           name="description"
-          content="A personal running journal. Compare distance, pace and weight, one week at a time."
+          content="Your weekly running targets, progress and weight at a glance."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#232323" />
@@ -237,7 +172,7 @@ export default function Home() {
       </a>
       <header className="site-header">
         <Link href="/">
-          <a className="brand" aria-label="Running Progress home">
+          <a className="brand">
             <span className="brand-icon" aria-hidden="true">
               <svg viewBox="0 0 32 32" fill="none">
                 <path
@@ -256,39 +191,202 @@ export default function Home() {
         </Link>
         <div className="header-right">
           <span className="personal-label">GLEN ADAMSON · PERSONAL LOG</span>
-          <button onClick={openManager}>
-            Manage data <span aria-hidden="true">→</span>
-          </button>
+          <button onClick={openManager}>Manage data →</button>
         </div>
       </header>
       <main id="main">
         <section className="hero">
           <div>
             <span className="eyebrow">
-              <span className="status-dot" /> THE LONG GAME
+              <span className="status-dot" />
+              THE LONG GAME
             </span>
             <h1>
               Running <span>Progress</span>
               <span className="title-dot">.</span>
             </h1>
-            <p>One run at a time. A little further. A little stronger.</p>
+            <p>Your week. Your benchmark. Your next step.</p>
           </div>
           <button className="primary add-button" onClick={openManager}>
-            <span aria-hidden="true">＋</span> Add an entry
+            ＋ Add an entry
           </button>
         </section>
         {storageError && (
-          <div className="storage-warning" role="alert">
-            {storageError}{" "}
+          <div role="alert" className="storage-warning">
+            {storageError}
             <button onClick={() => window.location.reload()}>Reload</button>
           </div>
         )}
-        {!data ? (
+        {!summary ? (
           <div className="panel loading" role="status">
-            Loading your training log…
+            Loading this week’s progress…
           </div>
         ) : (
           <>
+            <section
+              className="panel weekly-brief"
+              aria-labelledby="brief-title"
+            >
+              <span className="eyebrow">YOUR WEEK AT A GLANCE</span>
+              <div className="brief-date">
+                <time dateTime={now.toISOString()}>
+                  {now.toLocaleDateString("en-GB", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}{" "}
+                  ·{" "}
+                  {now.toLocaleTimeString("en-GB", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  })}
+                </time>
+                <span>
+                  {timeZone} · ISO week {week}
+                </span>
+              </div>
+              <h2 id="brief-title">
+                It’s {now.toLocaleDateString("en-GB", { weekday: "long" })} of
+                week {week}. Here’s your aim.
+              </h2>
+              <p>
+                {summary.previous.hasData ? (
+                  <>
+                    In the equivalent week last year (
+                    {shortDate(summary.previous.dates[0])}–
+                    {shortDate(summary.previous.dates[6])} {comparison}), you
+                    ran <strong>{km(summary.previous.distance)} km</strong> at
+                    an average pace of{" "}
+                    <strong>{formatPace(summary.previous.pace)}/km</strong>.
+                    Your benchmark this week is to exceed that distance and, if
+                    you’re aiming for speed, beat that pace.
+                  </>
+                ) : (
+                  <>
+                    There are no recorded runs for the equivalent week in{" "}
+                    {comparison}, so there’s no weekly distance or pace
+                    benchmark yet.
+                  </>
+                )}
+              </p>
+              <div className="brief-action">
+                {summary.remainingKm == null ? (
+                  "Log your runs to build your weekly picture."
+                ) : summary.aheadKm > 0 ? (
+                  <>
+                    Distance benchmark beaten by{" "}
+                    <strong>{km(summary.aheadKm)} km</strong>. Keep building on
+                    it.
+                  </>
+                ) : summary.remainingKm === 0 ? (
+                  <>
+                    You’ve matched last year’s distance. Your next kilometre
+                    puts you ahead.
+                  </>
+                ) : (
+                  <>
+                    <strong>{km(summary.remainingKm)} km</strong> more to match
+                    last year’s week; go a little further to exceed it.
+                  </>
+                )}
+              </div>
+              <p className="brief-progress">
+                So far this week:{" "}
+                <strong>{km(summary.current.distance)} km</strong>
+                {summary.current.pace != null ? (
+                  <>
+                    {" "}
+                    at <strong>{formatPace(summary.current.pace)}/km</strong>
+                  </>
+                ) : (
+                  " · no measured runs logged yet"
+                )}
+                .
+                {summary.priorToDay != null ? (
+                  <>
+                    {" "}
+                    By the end of the equivalent{" "}
+                    {now.toLocaleDateString("en-GB", { weekday: "long" })} last
+                    year, you had recorded{" "}
+                    <strong>{km(summary.priorToDay)} km</strong>.
+                  </>
+                ) : (
+                  ""
+                )}
+              </p>
+              <p className="brief-weight">
+                {summary.previousWeight ? (
+                  <>
+                    Your last weigh-in that week in {comparison} was{" "}
+                    <strong>{summary.previousWeight.weightKg} kg</strong> (
+                    {shortDate(summary.previousWeight.date)}).
+                  </>
+                ) : (
+                  "No weight was recorded in the equivalent week last year."
+                )}
+                {summary.currentWeight ? (
+                  <>
+                    {" "}
+                    Your{" "}
+                    {summary.weightThisWeek
+                      ? "latest weigh-in this week"
+                      : "latest recorded weigh-in"}{" "}
+                    is <strong>{summary.currentWeight.weightKg} kg</strong> (
+                    {shortDate(summary.currentWeight.date)}{" "}
+                    {summary.currentWeight.date.slice(0, 4)}).
+                  </>
+                ) : (
+                  " No current weigh-in is recorded."
+                )}
+              </p>
+            </section>
+            <div className="metrics-grid">
+              <Metric
+                accent
+                label={`THIS WEEK · ${year} / W${week}`}
+                value={km(summary.current.distance)}
+                unit="km"
+                detail={
+                  summary.previous.hasData
+                    ? `Last year’s full week: ${km(
+                        summary.previous.distance
+                      )} km`
+                    : "No equivalent-week distance recorded last year"
+                }
+              />
+              <Metric
+                label="THIS WEEK’S AVERAGE PACE"
+                value={formatPace(summary.current.pace)}
+                unit="/km"
+                detail={
+                  summary.previous.pace != null
+                    ? `Last year’s week: ${formatPace(
+                        summary.previous.pace
+                      )}/km · lower is faster`
+                    : "No equivalent-week pace recorded last year"
+                }
+              />
+              <Metric
+                label={
+                  summary.weightThisWeek
+                    ? "WEIGHT · THIS WEEK"
+                    : "LATEST RECORDED WEIGHT"
+                }
+                value={
+                  summary.currentWeight
+                    ? summary.currentWeight.weightKg.toFixed(1)
+                    : "—"
+                }
+                unit="kg"
+                detail={
+                  summary.previousWeight
+                    ? `Last year’s week: ${summary.previousWeight.weightKg} kg · target 74 kg`
+                    : "No weigh-in in last year’s equivalent week · target 74 kg"
+                }
+              />
+            </div>
             <div className="dashboard-controls">
               <div className="tabs" role="tablist" aria-label="Progress metric">
                 {TABS.map((t, i) => (
@@ -300,16 +398,16 @@ export default function Home() {
                     aria-controls="progress-panel"
                     tabIndex={tab === t ? 0 : -1}
                     onClick={() => setTab(t)}
-                    onKeyDown={(event) => {
-                      const moves = {
+                    onKeyDown={(e) => {
+                      const keys = {
                         ArrowRight: (i + 1) % 3,
                         ArrowLeft: (i + 2) % 3,
                         Home: 0,
                         End: 2,
                       };
-                      if (moves[event.key] !== undefined) {
-                        event.preventDefault();
-                        const next = TABS[moves[event.key]];
+                      if (keys[e.key] !== undefined) {
+                        e.preventDefault();
+                        const next = TABS[keys[e.key]];
                         setTab(next);
                         document
                           .getElementById(`tab-${next.toLowerCase()}`)
@@ -317,167 +415,20 @@ export default function Home() {
                       }
                     }}
                   >
-                    <span aria-hidden="true" className="tab-number">
-                      0{i + 1}
-                    </span>
+                    <span className="tab-number">0{i + 1}</span>
                     {t}
                   </button>
                 ))}
               </div>
-              <div className="year-controls">
-                <label className="sr-only" htmlFor="primary-year">
-                  Primary year
-                </label>
-                <select
-                  id="primary-year"
-                  value={year}
-                  onChange={(e) => changeYear(e.target.value)}
-                >
-                  {years.map((y) => (
-                    <option key={y}>{y}</option>
-                  ))}
-                </select>
-                <span>vs</span>
-                <label className="sr-only" htmlFor="comparison-year">
-                  Comparison year
-                </label>
-                <select
-                  id="comparison-year"
-                  value={comparison}
-                  onChange={(e) => changeYear(e.target.value, true)}
-                >
-                  {years.map((y) => (
-                    <option key={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
+              <span className="muted">
+                Always comparing week {week}: {year} vs {comparison}
+              </span>
             </div>
             <section
               id="progress-panel"
               role="tabpanel"
               aria-labelledby={`tab-${tab.toLowerCase()}`}
             >
-              <div className="metrics-grid">
-                {tab === "Weight" ? (
-                  <>
-                    <Metric
-                      accent
-                      label={`LATEST WEIGHT · ${year}`}
-                      value={
-                        weight.latest ? number(weight.latest.weightKg) : "—"
-                      }
-                      unit="kg"
-                      detail={
-                        weight.latest
-                          ? `Measured ${dateLabel(weight.latest.date)} ${year}`
-                          : "No measurements for this year"
-                      }
-                    />
-                    <Metric
-                      label={`CHANGE SINCE FIRST · ${year}`}
-                      value={signed(weight.change)}
-                      unit="kg"
-                      detail={
-                        weight.first
-                          ? `Since ${dateLabel(weight.first.date)} · ${
-                              weight.first.weightKg
-                            } kg`
-                          : "Add a weigh-in to start"
-                      }
-                    />
-                    <Metric
-                      label="DISTANCE TO TARGET"
-                      value={
-                        weight.latest
-                          ? number(
-                              Math.max(0, weight.latest.weightKg - TARGET_KG)
-                            )
-                          : "—"
-                      }
-                      unit="kg"
-                      detail={
-                        weight.latest && weight.latest.weightKg <= TARGET_KG
-                          ? "Target of 74 kg reached"
-                          : "Your target is 74 kg"
-                      }
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Metric
-                      accent
-                      label={`${year} · WEEK ${displayedWeek}`}
-                      value={
-                        tab === "Pace"
-                          ? formatPace(primary.pace)
-                          : primary.hasData
-                          ? number(primary.distance)
-                          : "—"
-                      }
-                      unit={tab === "Pace" ? "/km" : "km"}
-                      detail={`${primary.count} recorded ${
-                        primary.count === 1 ? "run" : "runs"
-                      } · ${dateLabel(primary.dates[0])}–${dateLabel(
-                        primary.dates[6]
-                      )}`}
-                    />
-                    <Metric
-                      label={`${comparison} · WEEK ${displayedWeek}`}
-                      value={
-                        tab === "Pace"
-                          ? formatPace(previous.pace)
-                          : previous.hasData
-                          ? number(previous.distance)
-                          : "—"
-                      }
-                      unit={tab === "Pace" ? "/km" : "km"}
-                      detail={
-                        previous.dates.length
-                          ? `${previous.count} recorded ${
-                              previous.count === 1 ? "run" : "runs"
-                            } · ${dateLabel(previous.dates[0])}–${dateLabel(
-                              previous.dates[6]
-                            )}`
-                          : `No ISO week ${week} in ${comparison}`
-                      }
-                    />
-                    <Metric
-                      label={
-                        tab === "Pace"
-                          ? "PACE DIFFERENCE"
-                          : "DISTANCE DIFFERENCE"
-                      }
-                      value={
-                        tab === "Pace"
-                          ? paceDiff == null
-                            ? "—"
-                            : `${
-                                paceDiff > 0 ? "+" : paceDiff < 0 ? "−" : ""
-                              }${formatPace(Math.abs(paceDiff))}`
-                          : signed(diff.km)
-                      }
-                      unit={tab === "Pace" ? "/km" : "km"}
-                      detail={
-                        tab === "Pace"
-                          ? paceDiff == null
-                            ? "Both years need recorded distance"
-                            : `${year} is ${
-                                paceDiff < 0
-                                  ? "faster"
-                                  : paceDiff > 0
-                                  ? "slower"
-                                  : "the same pace"
-                              } than ${comparison}`
-                          : diff.percent == null
-                          ? "Percentage needs a non-zero baseline"
-                          : `${signed(
-                              diff.percent
-                            )}% compared with ${comparison}`
-                      }
-                    />
-                  </>
-                )}
-              </div>
               <YearSelector
                 years={availableYears}
                 selected={chartYears}
@@ -487,84 +438,56 @@ export default function Home() {
               />
               {tab !== "Weight" && (
                 <YearOutlook
-                  chartYears={chartYears}
                   runs={data.runs}
                   year={year}
                   comparison={comparison}
                   week={week}
                   mode={tab.toLowerCase()}
-                  onSelectWeek={(next) => {
-                    setWeek(next);
-                    document
-                      .getElementById("weekly-chart")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
+                  chartYears={chartYears}
                 />
               )}
               <section className="panel chart-panel" id="weekly-chart">
                 <div className="section-heading">
                   <div>
                     <span className="eyebrow">
-                      {tab === "Weight" ? "BODY & BALANCE" : "WEEK BY WEEK"}
+                      {tab === "Weight"
+                        ? "BODY & BALANCE"
+                        : `THIS WEEK · ${year} VS ${comparison}`}
                     </span>
                     <h2>
                       {tab === "Distance"
-                        ? "Every kilometre adds up."
+                        ? "This week, side by side."
                         : tab === "Pace"
-                        ? "Find your rhythm."
+                        ? "This week’s running rhythm."
                         : "See the bigger picture."}
                     </h2>
                     <p>
-                      {tab === "Distance"
+                      {tab === "Weight"
+                        ? "All actual weigh-ins · aligned by month and day"
+                        : tab === "Distance"
                         ? "Cumulative distance · Monday to Sunday"
-                        : tab === "Pace"
-                        ? "Daily pace & cumulative weekly average · min:sec /km"
-                        : "Actual weigh-ins · aligned by month and day"}
+                        : "Daily pace & cumulative weekly average · min:sec /km"}
                     </p>
                   </div>
                   {tab !== "Weight" && (
-                    <div className="week-picker">
-                      <button
-                        aria-label="Previous week"
-                        disabled={week <= 1}
-                        onClick={() => setWeek(week - 1)}
-                      >
-                        ←
-                      </button>
-                      <label className="sr-only" htmlFor="week">
-                        Week
-                      </label>
-                      <select
-                        id="week"
-                        value={displayedWeek}
-                        onChange={(e) => setWeek(Number(e.target.value))}
-                      >
-                        {Array.from({ length: maxWeeks }, (_, i) => (
-                          <option key={i} value={i + 1}>
-                            Week {String(i + 1).padStart(2, "0")}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        aria-label="Next week"
-                        disabled={week >= maxWeeks}
-                        onClick={() => setWeek(week + 1)}
-                      >
-                        →
-                      </button>
-                    </div>
+                    <span className="pill">
+                      Week {week} · {shortDate(summary.current.dates[0])}–
+                      {shortDate(summary.current.dates[6])}
+                    </span>
                   )}
                 </div>
                 <div className="chart-legend">
-                  {chartYears.map((y) => (
-                    <span key={y}>
-                      <i
-                        className="legend-dot"
-                        style={{ background: yearColor(y, year, comparison) }}
-                      />
-                      {y}
-                    </span>
-                  ))}
+                  {(tab === "Weight" ? chartYears : [year, comparison]).map(
+                    (y) => (
+                      <span key={y}>
+                        <i
+                          className="legend-dot"
+                          style={{ background: yearColor(y, year, comparison) }}
+                        />
+                        {y}
+                      </span>
+                    )
+                  )}
                   {tab === "Pace" && (
                     <span className="legend-note">
                       Solid: weekly average · Dotted: daily pace
@@ -576,229 +499,34 @@ export default function Home() {
                 </div>
                 <ProgressChart
                   mode={tab.toLowerCase()}
-                  years={chartYears}
+                  years={tab === "Weight" ? chartYears : [year, comparison]}
                   primaryYear={year}
                   comparisonYear={comparison}
-                  data={tab === "Weight" ? weightData : chartData}
+                  data={tab === "Weight" ? weightData : weeklyData}
                   empty={
                     tab === "Weight"
                       ? !weightData.length
-                      : !chartData.some((p) =>
-                          chartYears.some((y) => p[`y${y}`] != null)
-                        )
+                      : !summary.current.hasData && !summary.previous.hasData
                   }
                 />
                 <div className="chart-footnote">
                   <span className="status-dot" />
                   <p>
-                    {tab === "Distance"
-                      ? "Equivalent ISO weeks, aligned by weekday. Totals include all recorded runs in each selected week; an empty day means no recorded distance."
+                    {tab === "Weight"
+                      ? "Dots are actual measurements; connecting lines are visual guides. No missing readings are filled in."
                       : tab === "Pace"
-                      ? "Average pace = total moving seconds ÷ total kilometres. Lower is faster. Zero-distance activities are excluded from pace calculations."
-                      : "Dots are actual measurements. Lines join observations as a visual guide; no missing measurements are filled in or counted."}
+                      ? "Pace uses total moving time ÷ total distance. Lower is faster; days without runs have no daily pace."
+                      : "The same ISO week, aligned Monday to Sunday. This year stops at today; last year’s full week remains visible as your target."}
                   </p>
                 </div>
-              </section>
-              <section className="panel breakdown">
-                <div className="section-heading">
-                  <div>
-                    <span className="eyebrow">THE DETAILS</span>
-                    <h2>
-                      {tab === "Weight"
-                        ? "Weight over time"
-                        : "Your weekly breakdown"}
-                    </h2>
-                  </div>
-                  <span className="muted">
-                    {tab === "Weight"
-                      ? "Recorded observations only"
-                      : "Monday → Sunday"}
-                  </span>
-                </div>
-                {tab === "Weight" ? (
-                  <>
-                    <div className="weight-summary">
-                      {[
-                        [year, weight],
-                        [comparison, olderWeight],
-                      ].map(([y, summary], i) => (
-                        <div key={y}>
-                          <span
-                            className={i === 0 ? "pink-text" : "green-text"}
-                          >
-                            {y}
-                          </span>
-                          <h3>
-                            {summary.latest
-                              ? `${summary.latest.weightKg} kg`
-                              : "No measurements"}
-                          </h3>
-                          <p>
-                            {summary.previousChange == null
-                              ? "No earlier weigh-in"
-                              : `${signed(
-                                  summary.previousChange
-                                )} kg since previous weigh-in`}
-                          </p>
-                          <p>
-                            {summary.latest
-                              ? `Latest: ${summary.latest.date}`
-                              : "Add measurements in Manage data"}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="table-scroll weight-history-table">
-                      <table>
-                        <caption className="sr-only">
-                          Actual weight measurements for the selected years
-                        </caption>
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th>Year</th>
-                            <th>Weight</th>
-                            <th>To target</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.weights
-                            .filter((r) =>
-                              chartYears.includes(Number(r.date.slice(0, 4)))
-                            )
-                            .sort((a, b) => b.date.localeCompare(a.date) || (b.time || "").localeCompare(a.time || ""))
-                            .map((r) => (
-                              <tr key={r.id}>
-                                <td>
-                                  {r.date}
-                                  {r.time && <small>{r.time}</small>}
-                                </td>
-                                <td>{r.date.slice(0, 4)}</td>
-                                <td>{r.weightKg} kg</td>
-                                <td>{signed(r.weightKg - TARGET_KG)} kg</td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                ) : (
-                  <div className="table-scroll">
-                    <table>
-                      <caption className="sr-only">
-                        Daily and cumulative {tab.toLowerCase()} for both
-                        selected weeks
-                      </caption>
-                      <thead>
-                        <tr>
-                          <th>Day</th>
-                          <th className="pink-text">
-                            {year} {tab === "Pace" ? "daily" : "distance"}
-                          </th>
-                          <th className="green-text">
-                            {comparison} {tab === "Pace" ? "daily" : "distance"}
-                          </th>
-                          <th className="pink-text">{year} cumulative</th>
-                          <th className="green-text">
-                            {comparison} cumulative
-                          </th>
-                          {tab === "Distance" && <th>Difference</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {DAYS.map((day, i) => {
-                          const p = primary.points[i],
-                            b = previous.points[i];
-                          const d = distanceDifference(
-                            p.distance,
-                            b.distance,
-                            p.distance != null,
-                            b.distance != null
-                          );
-                          return (
-                            <tr key={day}>
-                              <td>
-                                <strong>{day}</strong>
-                                <small>
-                                  {year}: {dateLabel(p.date)} / {comparison}:{" "}
-                                  {dateLabel(b.date)}
-                                </small>
-                              </td>
-                              <td>
-                                {tab === "Pace"
-                                  ? formatPace(p.dailyPace)
-                                  : `${number(p.dailyDistance)} km`}
-                              </td>
-                              <td>
-                                {tab === "Pace"
-                                  ? formatPace(b.dailyPace)
-                                  : `${number(b.dailyDistance)} km`}
-                              </td>
-                              <td>
-                                {tab === "Pace"
-                                  ? formatPace(p.cumulativePace)
-                                  : `${number(p.distance)} km`}
-                              </td>
-                              <td>
-                                {tab === "Pace"
-                                  ? formatPace(b.cumulativePace)
-                                  : `${number(b.distance)} km`}
-                              </td>
-                              {tab === "Distance" && (
-                                <td>
-                                  {signed(d.km)} km
-                                  <small>
-                                    {d.percent == null
-                                      ? "—"
-                                      : `${signed(d.percent)}%`}
-                                  </small>
-                                </td>
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr>
-                          <th>
-                            Week total{tab === "Pace" ? " / average" : ""}
-                          </th>
-                          <td>
-                            {tab === "Pace"
-                              ? formatPace(primary.pace)
-                              : `${
-                                  primary.hasData
-                                    ? number(primary.distance)
-                                    : "—"
-                                } km`}
-                          </td>
-                          <td>
-                            {tab === "Pace"
-                              ? formatPace(previous.pace)
-                              : `${
-                                  previous.hasData
-                                    ? number(previous.distance)
-                                    : "—"
-                                } km`}
-                          </td>
-                          <td colSpan={tab === "Pace" ? 2 : 3}>
-                            {tab === "Pace"
-                              ? "Weighted by distance"
-                              : "All recorded runs in each week"}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
               </section>
             </section>
             {showManager && (
               <DataManager
                 data={data}
-                onSave={persist}
+                onSave={(next) => save(next)}
                 blocked={blocked}
-                onRecover={recover}
+                onRecover={(next) => save(next, true)}
               />
             )}
             <div className="journal-banner">
@@ -806,15 +534,13 @@ export default function Home() {
                 <span className="eyebrow">KEEP SHOWING UP</span>
                 <p>Progress is built in the everyday.</p>
               </div>
-              <button onClick={openManager}>
-                Update your log <span aria-hidden="true">→</span>
-              </button>
+              <button onClick={openManager}>Update your log →</button>
             </div>
           </>
         )}
         <footer>
           <span>RUNNING / PROGRESS</span>
-          <p>Personal data stays in this browser. Back it up regularly.</p>
+          <p>Personal edits stay in this browser. Back them up regularly.</p>
           <span>THE NEXT RUN IS WHAT COUNTS.</span>
         </footer>
       </main>

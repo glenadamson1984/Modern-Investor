@@ -11,9 +11,9 @@ export default function YearSelector({
       <div className="section-heading">
         <div>
           <span className="eyebrow">YOUR WHOLE HISTORY</span>
-          <h2>Choose the years you want to see.</h2>
+          <h2>Your history, at a glance.</h2>
           <p>
-            Switch individual chart lines on or off. Summary cards and targets
+            Switch history chart lines on or off. Summary cards and targets
             still compare {year} with {comparison}.
           </p>
         </div>
