@@ -364,18 +364,95 @@ test("historical distance and pace bests are separate, weighted, and exclude mis
   assert.equal(weeklySummary(empty, "2026-11-08").bestWeek, null);
 });
 
-test('intelligent briefing keeps last year primary and calculates the extra distance to beat the all-year record',async()=>{
- const {weeklySummary}=await import('../src/lib/weekly-summary.mjs');const {buildWeeklyBriefing,kilometresToBeat}=await import('../src/lib/briefing.mjs');
- const s=weeklySummary(seed,'2026-11-08'), b=buildWeeklyBriefing(s);
- assert.match(b.target,/already beaten last year/);assert.match(b.target,/29.70/);assert.match(b.challenge,/2023/);assert.match(b.challenge,/59.46/);assert.match(b.challenge,/another 19.00 km/);assert.equal(b.targetExtra,0);assert.equal(b.recordExtra,19);
- assert.equal(kilometresToBeat(10,5),5.01);assert.equal(kilometresToBeat(10,10),0.01);assert.equal(kilometresToBeat(10,10.01),0);
- assert.ok(s.current.distance+b.recordExtra>s.bestWeek.distance);
+test("intelligent briefing keeps last year primary and calculates the extra distance to beat the all-year record", async () => {
+  const { weeklySummary } = await import("../src/lib/weekly-summary.mjs");
+  const { buildWeeklyBriefing, kilometresToBeat } = await import(
+    "../src/lib/briefing.mjs"
+  );
+  const s = weeklySummary(seed, "2026-11-08"),
+    b = buildWeeklyBriefing(s);
+  assert.match(b.target, /already beaten last year/);
+  assert.match(b.target, /29.70/);
+  assert.match(b.challenge, /2023/);
+  assert.match(b.challenge, /59.46/);
+  assert.match(b.challenge, /another 19.00 km/);
+  assert.equal(b.targetExtra, 0);
+  assert.equal(b.recordExtra, 19);
+  assert.equal(kilometresToBeat(10, 5), 5.01);
+  assert.equal(kilometresToBeat(10, 10), 0.01);
+  assert.equal(kilometresToBeat(10, 10.01), 0);
+  assert.ok(s.current.distance + b.recordExtra > s.bestWeek.distance);
 });
-test('intelligent briefing adapts to an unmet target, tied record, new record and missing history',async()=>{
- const {weeklySummary}=await import('../src/lib/weekly-summary.mjs');const {buildWeeklyBriefing}=await import('../src/lib/briefing.mjs');
- const make=distance=>weeklySummary({...empty,runs:[run('old','2025-11-03',10,3600),...(distance?[run('current','2026-11-02',distance,3600)]:[])]},'2026-11-08');
- const behind=buildWeeklyBriefing(make(5));assert.match(behind.target,/main target/);assert.match(behind.target,/another 5.01 km/);assert.match(behind.challenge,/Last year is also/);
- assert.equal(buildWeeklyBriefing(make(10)).recordExtra,0.01);
- const ahead=buildWeeklyBriefing(make(11));assert.match(ahead.challenge,/already your highest-distance/);assert.equal(ahead.recordExtra,0);
- const missing=buildWeeklyBriefing(weeklySummary(empty,'2026-11-08'));assert.equal(missing.recordExtra,null);assert.match(missing.challenge,/first recorded benchmark/);
+test("intelligent briefing adapts to an unmet target, tied record, new record and missing history", async () => {
+  const { weeklySummary } = await import("../src/lib/weekly-summary.mjs");
+  const { buildWeeklyBriefing } = await import("../src/lib/briefing.mjs");
+  const make = (distance) =>
+    weeklySummary(
+      {
+        ...empty,
+        runs: [
+          run("old", "2025-11-03", 10, 3600),
+          ...(distance ? [run("current", "2026-11-02", distance, 3600)] : []),
+        ],
+      },
+      "2026-11-08"
+    );
+  const behind = buildWeeklyBriefing(make(5));
+  assert.match(behind.target, /main target/);
+  assert.match(behind.target, /another 5.01 km/);
+  assert.match(behind.challenge, /Last year is also/);
+  assert.equal(buildWeeklyBriefing(make(10)).recordExtra, 0.01);
+  const ahead = buildWeeklyBriefing(make(11));
+  assert.match(ahead.challenge, /already your highest-distance/);
+  assert.equal(ahead.recordExtra, 0);
+  const missing = buildWeeklyBriefing(weeklySummary(empty, "2026-11-08"));
+  assert.equal(missing.recordExtra, null);
+  assert.match(missing.challenge, /first recorded benchmark/);
+});
+
+test("sobriety counter uses the exact start instant, elapsed days and sensible estimates", async () => {
+  const { DEFAULT_SOBRIETY, sobrietyProgress } = await import(
+    "../src/lib/sobriety.mjs"
+  );
+  const s = sobrietyProgress(DEFAULT_SOBRIETY, "2026-11-08T11:33:00Z");
+  assert.equal(s.wholeDays, 440);
+  assert.equal(s.hours, 4);
+  assert.equal(s.minutes, 33);
+  assert.ok(Math.abs(s.moneySaved - s.days * 4) < 1e-8);
+  assert.ok(Math.abs(s.caloriesSaved - s.days * 306) < 1e-8);
+  const before = sobrietyProgress(DEFAULT_SOBRIETY, "2025-08-24T07:00:00Z");
+  assert.equal(before.days, 0);
+  assert.equal(before.moneySaved, 0);
+  assert.equal(before.started, false);
+  const next = sobrietyProgress(DEFAULT_SOBRIETY, "2025-08-26T07:00:01Z");
+  assert.equal(next.wholeDays, 1);
+  assert.equal(next.seconds, 1);
+});
+test("sobriety settings survive validation, local storage and JSON/CSV backup and reject invalid values", async () => {
+  const { DEFAULT_SOBRIETY, validateSobriety } = await import(
+    "../src/lib/sobriety.mjs"
+  );
+  const data = {
+    ...empty,
+    sobriety: { ...DEFAULT_SOBRIETY, dailySpending: 5.5 },
+  };
+  assert.deepEqual(fromCSV(toCSV(data)), validateData(data));
+  assert.deepEqual(
+    parseBackup(JSON.stringify(data), "backup.json"),
+    validateData(data)
+  );
+  let raw;
+  const storage = { setItem: (k, v) => (raw = v), getItem: () => raw };
+  saveData(storage, data);
+  assert.equal(loadData(storage, seed).sobriety.dailySpending, 5.5);
+  assert.equal(mergeData(seed, data).sobriety.dailySpending, 5.5);
+  assert.throws(() =>
+    validateSobriety({ ...DEFAULT_SOBRIETY, dailySpending: -1 })
+  );
+  assert.throws(() =>
+    validateSobriety({ ...DEFAULT_SOBRIETY, startedAt: "nonsense" })
+  );
+  assert.throws(() =>
+    validateSobriety({ ...DEFAULT_SOBRIETY, dailyCalories: Infinity })
+  );
 });

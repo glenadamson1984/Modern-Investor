@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import seed from "../src/data/seed.json";
 import history from "../src/data/weight-history.json";
+import Sobriety from "../src/components/Sobriety";
+import { DEFAULT_SOBRIETY, sobrietyProgress } from "../src/lib/sobriety.mjs";
 import DataManager from "../src/components/DataManager";
 import YearSelector from "../src/components/YearSelector";
 import YearOutlook from "../src/components/YearOutlook";
@@ -22,7 +24,7 @@ import { yearColor } from "../src/lib/series.mjs";
 const ProgressChart = dynamic(() => import("../src/components/ProgressChart"), {
   ssr: false,
 });
-const TABS = ["Distance", "Pace", "Weight"];
+const TABS = ["Distance", "Pace", "Weight", "Sobriety"];
 const km = (value) => (value == null ? "—" : value.toFixed(2));
 const shortDate = (value) =>
   new Date(`${value}T12:00:00`).toLocaleDateString("en-GB", {
@@ -107,6 +109,8 @@ export default function Home() {
   }
   const today = now ? localDateKey(now) : null;
   const summary = data && today ? weeklySummary(data, today) : null;
+  const soberConfig = data?.sobriety || DEFAULT_SOBRIETY;
+  const soberProgress = now ? sobrietyProgress(soberConfig, now) : null;
   const briefing = summary ? buildWeeklyBriefing(summary) : null;
   const year = summary?.year,
     comparison = summary?.comparison,
@@ -306,6 +310,31 @@ export default function Home() {
                 )}
               </p>
             </section>
+            {soberProgress && (
+              <button
+                className="sober-summary"
+                onClick={() => {
+                  setTab("Sobriety");
+                  document
+                    .getElementById("progress-panel")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <span className="status-dot" />
+                <strong>
+                  {soberProgress.wholeDays.toLocaleString("en-GB")} days sober
+                </strong>
+                <span>
+                  Since{" "}
+                  {new Date(soberConfig.startedAt).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}{" "}
+                  · Keep moving forward →
+                </span>
+              </button>
+            )}
             <div className="metrics-grid">
               <Metric
                 accent
@@ -364,10 +393,10 @@ export default function Home() {
                     onClick={() => setTab(t)}
                     onKeyDown={(e) => {
                       const keys = {
-                        ArrowRight: (i + 1) % 3,
-                        ArrowLeft: (i + 2) % 3,
+                        ArrowRight: (i + 1) % TABS.length,
+                        ArrowLeft: (i + TABS.length - 1) % TABS.length,
                         Home: 0,
-                        End: 2,
+                        End: TABS.length - 1,
                       };
                       if (keys[e.key] !== undefined) {
                         e.preventDefault();
@@ -393,97 +422,112 @@ export default function Home() {
               role="tabpanel"
               aria-labelledby={`tab-${tab.toLowerCase()}`}
             >
-              <YearSelector
-                years={availableYears}
-                selected={chartYears}
-                year={year}
-                comparison={comparison}
-                onChange={setVisibleYears}
-              />
-              {tab !== "Weight" && (
-                <YearOutlook
-                  runs={data.runs}
-                  year={year}
-                  comparison={comparison}
-                  week={week}
-                  mode={tab.toLowerCase()}
-                  chartYears={chartYears}
+              {tab === "Sobriety" ? (
+                <Sobriety
+                  config={soberConfig}
+                  blocked={blocked}
+                  onSave={(config) => save({ ...data, sobriety: config })}
                 />
-              )}
-              <section className="panel chart-panel" id="weekly-chart">
-                <div className="section-heading">
-                  <div>
-                    <span className="eyebrow">
-                      {tab === "Weight"
-                        ? "BODY & BALANCE"
-                        : `THIS WEEK · ${year} VS ${comparison}`}
-                    </span>
-                    <h2>
-                      {tab === "Distance"
-                        ? "This week, side by side."
-                        : tab === "Pace"
-                        ? "This week’s running rhythm."
-                        : "See the bigger picture."}
-                    </h2>
-                    <p>
-                      {tab === "Weight"
-                        ? "All actual weigh-ins · aligned by month and day"
-                        : tab === "Distance"
-                        ? "Cumulative distance · Monday to Sunday"
-                        : "Daily pace & cumulative weekly average · min:sec /km"}
-                    </p>
-                  </div>
+              ) : (
+                <>
+                  <YearSelector
+                    years={availableYears}
+                    selected={chartYears}
+                    year={year}
+                    comparison={comparison}
+                    onChange={setVisibleYears}
+                  />
                   {tab !== "Weight" && (
-                    <span className="pill">
-                      Week {week} · {shortDate(summary.current.dates[0])}–
-                      {shortDate(summary.current.dates[6])}
-                    </span>
+                    <YearOutlook
+                      runs={data.runs}
+                      year={year}
+                      comparison={comparison}
+                      week={week}
+                      mode={tab.toLowerCase()}
+                      chartYears={chartYears}
+                    />
                   )}
-                </div>
-                <div className="chart-legend">
-                  {(tab === "Weight" ? chartYears : [year, comparison]).map(
-                    (y) => (
-                      <span key={y}>
-                        <i
-                          className="legend-dot"
-                          style={{ background: yearColor(y, year, comparison) }}
-                        />
-                        {y}
-                      </span>
-                    )
-                  )}
-                  {tab === "Pace" && (
-                    <span className="legend-note">
-                      Solid: weekly average · Dotted: daily pace
-                    </span>
-                  )}
-                  {tab === "Weight" && (
-                    <span className="legend-note">Dashed: 74 kg target</span>
-                  )}
-                </div>
-                <ProgressChart
-                  mode={tab.toLowerCase()}
-                  years={tab === "Weight" ? chartYears : [year, comparison]}
-                  primaryYear={year}
-                  comparisonYear={comparison}
-                  data={tab === "Weight" ? weightData : weeklyData}
-                  empty={
-                    tab === "Weight"
-                      ? !weightData.length
-                      : !summary.current.hasData && !summary.previous.hasData
-                  }
-                />
-                <div className="chart-footnote">
-                  <span className="status-dot" />
-                  <p>
-                    {tab === "Weight"
-                      ? "Dots are actual measurements; connecting lines are visual guides. No missing readings are filled in."
-                      : tab === "Pace"
-                      ? "Pace uses total moving time ÷ total distance. Lower is faster; days without runs have no daily pace."
-                      : "The same ISO week, aligned Monday to Sunday. This year stops at today; last year’s full week remains visible as your target."}
-                  </p>
-                </div>
-              </section>
+                  <section className="panel chart-panel" id="weekly-chart">
+                    <div className="section-heading">
+                      <div>
+                        <span className="eyebrow">
+                          {tab === "Weight"
+                            ? "BODY & BALANCE"
+                            : `THIS WEEK · ${year} VS ${comparison}`}
+                        </span>
+                        <h2>
+                          {tab === "Distance"
+                            ? "This week, side by side."
+                            : tab === "Pace"
+                            ? "This week’s running rhythm."
+                            : "See the bigger picture."}
+                        </h2>
+                        <p>
+                          {tab === "Weight"
+                            ? "All actual weigh-ins · aligned by month and day"
+                            : tab === "Distance"
+                            ? "Cumulative distance · Monday to Sunday"
+                            : "Daily pace & cumulative weekly average · min:sec /km"}
+                        </p>
+                      </div>
+                      {tab !== "Weight" && (
+                        <span className="pill">
+                          Week {week} · {shortDate(summary.current.dates[0])}–
+                          {shortDate(summary.current.dates[6])}
+                        </span>
+                      )}
+                    </div>
+                    <div className="chart-legend">
+                      {(tab === "Weight" ? chartYears : [year, comparison]).map(
+                        (y) => (
+                          <span key={y}>
+                            <i
+                              className="legend-dot"
+                              style={{
+                                background: yearColor(y, year, comparison),
+                              }}
+                            />
+                            {y}
+                          </span>
+                        )
+                      )}
+                      {tab === "Pace" && (
+                        <span className="legend-note">
+                          Solid: weekly average · Dotted: daily pace
+                        </span>
+                      )}
+                      {tab === "Weight" && (
+                        <span className="legend-note">
+                          Dashed: 74 kg target
+                        </span>
+                      )}
+                    </div>
+                    <ProgressChart
+                      mode={tab.toLowerCase()}
+                      years={tab === "Weight" ? chartYears : [year, comparison]}
+                      primaryYear={year}
+                      comparisonYear={comparison}
+                      data={tab === "Weight" ? weightData : weeklyData}
+                      empty={
+                        tab === "Weight"
+                          ? !weightData.length
+                          : !summary.current.hasData &&
+                            !summary.previous.hasData
+                      }
+                    />
+                    <div className="chart-footnote">
+                      <span className="status-dot" />
+                      <p>
+                        {tab === "Weight"
+                          ? "Dots are actual measurements; connecting lines are visual guides. No missing readings are filled in."
+                          : tab === "Pace"
+                          ? "Pace uses total moving time ÷ total distance. Lower is faster; days without runs have no daily pace."
+                          : "The same ISO week, aligned Monday to Sunday. This year stops at today; last year’s full week remains visible as your target."}
+                      </p>
+                    </div>
+                  </section>
+                </>
+              )}
             </section>
             {showManager && (
               <DataManager

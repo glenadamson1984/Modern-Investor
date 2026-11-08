@@ -1,3 +1,4 @@
+import { validateSobriety } from "./sobriety.mjs";
 export const STORAGE_KEY = "running-progress:v1";
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export const TARGET_KG = 74;
@@ -98,6 +99,8 @@ export function validateData(data) {
       throw new Error("Invalid import history.");
     result.imports = [...new Set(data.imports)];
   }
+  if (data.sobriety !== undefined)
+    result.sobriety = validateSobriety(data.sobriety);
   return result;
 }
 export function isoWeek(date) {
@@ -252,6 +255,7 @@ export function mergeData(current, incoming) {
       if (index < 0) next[kind].push(record);
       else next[kind][index] = record;
     }
+  if (incoming.sobriety !== undefined) next.sobriety = incoming.sobriety;
   return validateData(next);
 }
 

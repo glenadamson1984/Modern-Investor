@@ -1321,3 +1321,129 @@ footer > span:last-child {
   margin-bottom: 12px;
   color: #e2dce0;
 }
+.sober-summary {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  padding: 16px 20px;
+  margin: 0 0 24px;
+  border-color: #7bcda438;
+  background: #7bcda408;
+  flex-wrap: wrap;
+}
+.sober-summary .status-dot {
+  background: var(--green);
+}
+.sober-summary strong {
+  color: var(--green);
+  font-weight: 600;
+}
+.sober-summary > span:last-child {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+.sober-counter {
+  text-align: center;
+  padding: 42px 10px;
+  margin: 25px 0;
+  border-radius: 12px;
+  border: 1px solid #ff408b30;
+  background: linear-gradient(120deg, #ff408b10, #7bcda407);
+}
+.sober-days {
+  font: 600 clamp(64px, 10vw, 104px) / 1.15 var(--heading);
+  letter-spacing: -3px;
+  color: var(--pink);
+  font-variant-numeric: tabular-nums;
+}
+.sober-days > span {
+  font: 400 16px var(--body);
+  letter-spacing: 0;
+  margin-left: 12px;
+  color: var(--muted);
+}
+.sober-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  color: #dedee2;
+  margin: 15px 0;
+}
+.sober-counter > p {
+  font-size: 12px;
+  color: var(--muted);
+}
+.metrics-grid.sober-estimates {
+  grid-template-columns: 1fr 1fr;
+}
+.sober-estimate {
+  font: 500 clamp(25px, 4vw, 38px) / 1.4 var(--heading);
+  letter-spacing: -1px;
+  margin: 16px 0 10px;
+  overflow-wrap: anywhere;
+}
+.sober-estimate > span {
+  margin-left: 8px;
+  font: 400 12px var(--body);
+  color: var(--muted);
+}
+.sober-milestone {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin: 20px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sober-milestone progress {
+  flex: 1 1 180px;
+  accent-color: var(--green);
+  height: 9px;
+}
+.sober-form {
+  margin-top: 25px;
+}
+@media (max-width: 600px) {
+  .tabs {
+    gap: 4px;
+  }
+  .tabs button {
+    font-size: 11px;
+    padding-inline: 4px;
+  }
+  .tab-number {
+    font-size: 8px;
+    margin-right: 4px;
+  }
+  .sober-summary {
+    padding: 14px;
+    gap: 8px;
+  }
+  .sober-summary > span:last-child {
+    margin-left: 13px;
+    flex-basis: 100%;
+    font-size: 10px;
+  }
+  .metrics-grid.sober-estimates {
+    grid-template-columns: 1fr;
+  }
+  .sober-estimates .metric:first-child {
+    display: block;
+  }
+  .sober-days {
+    font-size: 74px;
+  }
+  .sober-clock {
+    font-size: 19px;
+  }
+  .sober-milestone {
+    font-size: 11px;
+  }
+  .sober-milestone progress {
+    flex-basis: 100%;
+    order: 3;
+  }
+}

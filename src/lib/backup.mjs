@@ -9,6 +9,10 @@ const FIELDS = [
   "weightKg",
   "estimated",
   "time",
+  "startedAt",
+  "dailySpending",
+  "dailyCalories",
+  "currency",
 ];
 export function toCSV(data) {
   return Papa.unparse(
@@ -24,6 +28,10 @@ export function toCSV(data) {
           "",
           r.estimated,
           "",
+          "",
+          "",
+          "",
+          "",
         ]),
         ...data.weights.map((r) => [
           "weight",
@@ -34,7 +42,29 @@ export function toCSV(data) {
           r.weightKg,
           "",
           r.time || "",
+          "",
+          "",
+          "",
+          "",
         ]),
+        ...(data.sobriety
+          ? [
+              [
+                "sobriety",
+                "sobriety-settings",
+                data.sobriety.startedAt.slice(0, 10),
+                "",
+                "",
+                "",
+                "",
+                "",
+                data.sobriety.startedAt,
+                data.sobriety.dailySpending,
+                data.sobriety.dailyCalories,
+                data.sobriety.currency,
+              ],
+            ]
+          : []),
       ],
     },
     { escapeFormulae: true }
@@ -53,8 +83,25 @@ export function fromCSV(text) {
     );
   const data = { version: 1, runs: [], weights: [] };
   for (const [i, row] of parsed.data.entries()) {
-    if (!["run", "weight"].includes(row.kind))
-      throw new Error(`CSV row ${i + 2}: kind must be run or weight.`);
+    if (!["run", "weight", "sobriety"].includes(row.kind))
+      throw new Error(
+        `CSV row ${i + 2}: kind must be run, weight or sobriety.`
+      );
+    if (row.kind === "sobriety") {
+      if (data.sobriety)
+        throw new Error("Only one sobriety settings row is supported.");
+      data.sobriety = {
+        startedAt: row.startedAt,
+        dailySpending: row.dailySpending?.trim()
+          ? Number(row.dailySpending)
+          : NaN,
+        dailyCalories: row.dailyCalories?.trim()
+          ? Number(row.dailyCalories)
+          : NaN,
+        currency: row.currency,
+      };
+      continue;
+    }
     if (row.kind === "run") {
       if (row.estimated && !["true", "false"].includes(row.estimated))
         throw new Error(`CSV row ${i + 2}: estimated must be true or false.`);
