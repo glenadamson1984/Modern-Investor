@@ -3262,6 +3262,13 @@
       "distanceKm": 9.2682,
       "movingSeconds": 3505,
       "estimated": false
+    },
+    {
+      "id": "manual-2026-11-09-run",
+      "date": "2026-11-09",
+      "distanceKm": 10,
+      "movingSeconds": 3780,
+      "estimated": true
     }
   ],
   "weights": [
@@ -8370,6 +8377,12 @@
       "date": "2026-11-05",
       "time": "08:08",
       "weightKg": 79.5
+    },
+    {
+      "id": "weight-2026-11-09T17:30",
+      "date": "2026-11-09",
+      "time": "17:30",
+      "weightKg": 79.7
     }
   ]
 }

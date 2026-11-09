@@ -9,7 +9,8 @@ import { DEFAULT_SOBRIETY, sobrietyProgress } from "../src/lib/sobriety.mjs";
 import DataManager from "../src/components/DataManager";
 import YearSelector from "../src/components/YearSelector";
 import YearOutlook from "../src/components/YearOutlook";
-import { applyHistory } from "../src/lib/history.mjs";
+import updates from "../src/data/updates.json";
+import { applyHistory, applyUpdates } from "../src/lib/history.mjs";
 import { loadData, saveData } from "../src/lib/storage.mjs";
 import {
   DAYS,
@@ -57,7 +58,7 @@ export default function Home() {
     const timer = setInterval(tick, 30000);
     try {
       const saved = loadData(window.localStorage, seed),
-        loaded = applyHistory(saved, history);
+        loaded = applyUpdates(applyHistory(saved, history), updates);
       if (loaded !== saved) saveData(window.localStorage, loaded);
       setData(loaded);
     } catch {
@@ -90,6 +91,7 @@ export default function Home() {
           ...(data?.imports || []),
           ...(next.imports || []),
           history.id,
+          ...updates.map(update => update.id),
         ]),
       ],
     });

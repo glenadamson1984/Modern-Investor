@@ -13,3 +13,15 @@ export function applyHistory(data, history) {
     imports: [...(data.imports || []), history.id],
   });
 }
+
+// Add intentional new batches once. Existing manual entries take precedence.
+export function applyUpdates(data, updates) {
+  let result = data;
+  for (const update of updates) {
+    if (result.imports?.includes(update.id)) continue;
+    const runs = (update.runs || []).filter(record => !result.runs.some(r => r.id === record.id || r.date === record.date));
+    const weights = (update.weights || []).filter(record => !result.weights.some(r => r.id === record.id || (r.date === record.date && (!r.time || r.time === record.time))));
+    result = validateData({ ...result, runs: [...result.runs, ...runs], weights: [...result.weights, ...weights], imports: [...(result.imports || []), update.id] });
+  }
+  return result;
+}
