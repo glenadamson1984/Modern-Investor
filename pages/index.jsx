@@ -259,6 +259,10 @@ export default function Home() {
                 It’s {now.toLocaleDateString("en-GB", { weekday: "long" })} of
                 week {week}. Here’s your aim.
               </h2>
+              <div className="goal-grid" aria-label="Weekly distance targets">
+                <Metric accent label={briefing.targetExtra === 0 ? "AHEAD OF LAST YEAR" : "TO BEAT LAST YEAR"} value={briefing.targetExtra == null ? "—" : briefing.targetExtra === 0 ? `+${km(summary.aheadKm)}` : km(briefing.targetExtra)} unit="km" detail={summary.previous.hasData ? `${comparison} week ${week}: ${km(summary.previous.distance)} km${briefing.targetExtra === 0 ? " · beaten" : ""}` : "No recorded benchmark for last year"}/>
+                <Metric label={briefing.recordExtra === 0 ? `NEW WEEK ${week} RECORD` : `TO BEAT WEEK ${week} RECORD`} value={briefing.recordExtra == null ? "—" : briefing.recordExtra === 0 ? `+${km(summary.bestAheadKm)}` : km(briefing.recordExtra)} unit="km" detail={summary.bestWeek ? `${summary.bestWeek.year} best: ${km(summary.bestWeek.distance)} km${briefing.recordExtra === 0 ? " · beaten" : " · all prior years"}` : "No earlier recorded benchmark for this week"}/>
+              </div>
               <p className="brief-weight">
                 <span className="weight-brief-label">WEIGHT</span>
                 {summary.currentWeight ? <>

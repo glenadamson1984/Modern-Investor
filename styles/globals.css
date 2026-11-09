@@ -1451,3 +1451,10 @@ footer > span:last-child {
 .weekly-brief .brief-weight { margin:0 0 20px; padding:15px 18px; border-left:3px solid var(--green); background:#7bcda409; font-size:13px; color:#d6d6db; }
 .weight-brief-label { display:block; font-size:9px; letter-spacing:1.7px; color:var(--green); font-weight:600; margin-bottom:7px; }
 @media(max-width:600px){.weekly-brief .brief-weight{font-size:12px;padding:13px 14px;}}
+
+.goal-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:22px 0; }
+.goal-grid .metric { background:#23232370; }
+.goal-grid .metric:nth-child(2) { border-color:#7bcda440; }
+.goal-grid .metric:nth-child(2) .metric-value { color:var(--green); }
+.goal-grid .metric p { font-size:11px; line-height:1.6; }
+@media(max-width:600px){.goal-grid{gap:10px;margin:18px 0}.goal-grid .metric{padding:16px 12px}.goal-grid .metric:first-child{display:block;grid-column:auto}.goal-grid .metric:first-child .metric-value{font-size:29px;margin:12px 0 8px}.goal-grid .metric p,.goal-grid .metric:first-child p{font-size:9px}.goal-grid .metric-label{font-size:8px;letter-spacing:.7px}}
