@@ -2,10 +2,34 @@
   {
     "id": "daily-records-2026-11-09",
     "runs": [
-      { "id": "manual-2026-11-09-run", "date": "2026-11-09", "distanceKm": 10, "movingSeconds": 3780, "estimated": true }
+      {
+        "id": "manual-2026-11-09-run",
+        "date": "2026-11-09",
+        "distanceKm": 10,
+        "movingSeconds": 3780,
+        "estimated": true
+      }
     ],
     "weights": [
-      { "id": "weight-2026-11-09T17:30", "date": "2026-11-09", "time": "17:30", "weightKg": 79.7 }
+      {
+        "id": "weight-2026-11-09T17:30",
+        "date": "2026-11-09",
+        "time": "17:30",
+        "weightKg": 79.7
+      }
     ]
+  },
+  {
+    "id": "daily-records-2026-11-10",
+    "runs": [
+      {
+        "id": "manual-2026-11-10-run",
+        "date": "2026-11-10",
+        "distanceKm": 7.3,
+        "movingSeconds": 2820,
+        "estimated": true
+      }
+    ],
+    "weights": []
   }
 ]

@@ -23,8 +23,11 @@ const seed = JSON.parse(
   fs.readFileSync(new URL("../src/data/seed.json", import.meta.url))
 );
 const currentSeed = structuredClone(seed);
-seed.runs = seed.runs.filter(r => r.id !== 'manual-2026-11-09-run');
-seed.weights = seed.weights.filter(r => r.id !== 'weight-2026-11-09T17:30');
+const dailyUpdates = JSON.parse(fs.readFileSync(new URL('../src/data/updates.json',import.meta.url)));
+const addedRunIds = new Set(dailyUpdates.flatMap(update => update.runs || []).map(r => r.id));
+const addedWeightIds = new Set(dailyUpdates.flatMap(update => update.weights || []).map(r => r.id));
+seed.runs = seed.runs.filter(r => !addedRunIds.has(r.id));
+seed.weights = seed.weights.filter(r => !addedWeightIds.has(r.id));
 const run = (id, date, distanceKm, movingSeconds) => ({
   id,
   date,
@@ -460,11 +463,13 @@ test("sobriety settings survive validation, local storage and JSON/CSV backup an
   );
 });
 
-test('9 November update adds approximate running and exact screenshot weight once and preserves user data',async()=>{
+test('daily screenshot updates add estimated runs and exact weights once while preserving user data',async()=>{
  const {applyUpdates}=await import('../src/lib/history.mjs');const updates=JSON.parse(fs.readFileSync(new URL('../src/data/updates.json',import.meta.url)));
- const result=applyUpdates(seed,updates);assert.equal(result.runs.length,467);assert.equal(result.weights.length,852);const run=result.runs.find(r=>r.id==='manual-2026-11-09-run');assert.equal(run.distanceKm,10);assert.equal(run.movingSeconds,3780);assert.equal(formatPace(run.movingSeconds/run.distanceKm),'6:18');assert.equal(run.estimated,true);
+ const result=applyUpdates(seed,updates);assert.equal(result.runs.length,468);assert.equal(result.weights.length,852);const run=result.runs.find(r=>r.id==='manual-2026-11-09-run');assert.equal(run.distanceKm,10);assert.equal(run.movingSeconds,3780);assert.equal(formatPace(run.movingSeconds/run.distanceKm),'6:18');assert.equal(run.estimated,true);
  const weight=result.weights.find(r=>r.id==='weight-2026-11-09T17:30');assert.equal(weight.weightKg,79.7);assert.equal(weight.time,'17:30');assert.equal(applyUpdates(result,updates),result);
  const edited={...seed,runs:[...seed.runs,{...run,id:'mine',distanceKm:10.03}],weights:[...seed.weights,{...weight,id:'mine',weightKg:79.6}]};const preserved=applyUpdates(edited,updates);assert.equal(preserved.runs.filter(r=>r.date==='2026-11-09').length,1);assert.equal(preserved.weights.find(r=>r.id==='mine').weightKg,79.6);
  const deleted={...result,runs:seed.runs,weights:seed.weights};assert.equal(applyUpdates(deleted,updates),deleted);
+ const today=result.runs.find(r=>r.id==='manual-2026-11-10-run');assert.equal(today.distanceKm,7.3);assert.equal(today.movingSeconds,2820);assert.equal(formatPace(today.movingSeconds/today.distanceKm),'6:26');assert.equal(today.estimated,true);
+ const week=weeklySeries(result.runs,2026,46);assert.ok(Math.abs(week.distance-17.3)<1e-8);assert.equal(week.seconds,6600);assert.equal(formatPace(week.pace),'6:22');
  assert.deepEqual(result.runs,validateData(currentSeed).runs);assert.deepEqual(result.weights,validateData(currentSeed).weights);
 });
