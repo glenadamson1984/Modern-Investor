@@ -3273,9 +3273,16 @@
     {
       "id": "manual-2026-11-10-run",
       "date": "2026-11-10",
-      "distanceKm": 7.3,
-      "movingSeconds": 2820,
-      "estimated": true
+      "distanceKm": 7.4,
+      "movingSeconds": 2803,
+      "estimated": false
+    },
+    {
+      "id": "manual-2026-11-12-run",
+      "date": "2026-11-12",
+      "distanceKm": 10.01,
+      "movingSeconds": 3630,
+      "estimated": false
     }
   ],
   "weights": [
